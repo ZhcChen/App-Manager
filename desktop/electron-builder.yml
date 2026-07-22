@@ -1,6 +1,7 @@
 appId: com.zhcchen.app-manager
 productName: App Manager
 asar: true
+icon: ../packages/brand/logo/app-manager-mark.svg
 
 directories:
   output: release

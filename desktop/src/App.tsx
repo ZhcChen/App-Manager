@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import appManagerMarkUrl from "@app-manager/brand/logo/app-manager-mark.svg";
 import { loadDesktopBootstrap, type DesktopBootstrap } from "./lib/desktopRuntime";
 import { canTerminateProcess } from "./features/processes/guards";
 import { ProcessList } from "./features/processes/components/ProcessList";
@@ -193,8 +194,15 @@ export function App() {
       <section className="monitor-shell">
         <header className="monitor-header">
           <div className="monitor-header__title">
-            <h1>App Manager</h1>
-            <p>进程监视器</p>
+            <img
+              className="monitor-header__brand-mark"
+              src={appManagerMarkUrl}
+              alt="App Manager 标志"
+            />
+            <div className="monitor-header__copy">
+              <h1>App Manager</h1>
+              <p>进程监视器</p>
+            </div>
           </div>
 
           <nav className="view-tabs" aria-label="监视视图">

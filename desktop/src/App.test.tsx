@@ -6,6 +6,7 @@ describe("App", () => {
     render(<App />);
     const tabs = screen.getByRole("navigation", { name: "监视视图" });
 
+    expect(screen.getByAltText("App Manager 标志")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 1, name: "App Manager" })
     ).toBeInTheDocument();

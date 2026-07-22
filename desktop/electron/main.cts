@@ -1,5 +1,5 @@
 import path from "node:path";
-import { app, BrowserWindow } from "electron";
+import { app, BrowserWindow, nativeImage } from "electron";
 import { registerBootstrapHandlers } from "./ipc/bootstrap.cjs";
 import { registerProcessHandlers } from "./ipc/processes.cjs";
 
@@ -7,7 +7,27 @@ function resolveRendererEntry() {
   return process.env.ELECTRON_RENDERER_URL ?? null;
 }
 
+function resolveBrandIconPath() {
+  return path.resolve(__dirname, "../../packages/brand/logo/app-manager-mark.png");
+}
+
+function applyRuntimeBrandIcon() {
+  if (app.isPackaged) {
+    return;
+  }
+
+  const icon = nativeImage.createFromPath(resolveBrandIconPath());
+  if (icon.isEmpty()) {
+    return;
+  }
+
+  if (process.platform === "darwin" && app.dock) {
+    app.dock.setIcon(icon);
+  }
+}
+
 function createMainWindow() {
+  const windowIcon = app.isPackaged ? undefined : resolveBrandIconPath();
   const window = new BrowserWindow({
     width: 1360,
     height: 920,
@@ -16,6 +36,7 @@ function createMainWindow() {
     show: false,
     title: "App Manager",
     backgroundColor: "#edf0f5",
+    ...(windowIcon ? { icon: windowIcon } : {}),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),
       contextIsolation: true,
@@ -39,6 +60,7 @@ function createMainWindow() {
 }
 
 app.whenReady().then(() => {
+  applyRuntimeBrandIcon();
   registerBootstrapHandlers();
   registerProcessHandlers();
   createMainWindow();

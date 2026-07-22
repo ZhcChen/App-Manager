@@ -82,6 +82,24 @@ button:disabled {
   gap: 12px;
 }
 
+.monitor-header__title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.monitor-header__brand-mark {
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
+  border-radius: 10px;
+  box-shadow: 0 6px 14px rgba(29, 78, 216, 0.18);
+}
+
+.monitor-header__copy {
+  min-width: 0;
+}
+
 .monitor-header__title h1,
 .monitor-summary__primary h2,
 .detail-panel__selection h3 {
