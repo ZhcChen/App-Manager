@@ -88,6 +88,27 @@ export function App() {
     return next;
   }, [processes.items, query, sortMode]);
 
+  const protectedCount = useMemo(
+    () => processes.items.filter((item) => !item.canTerminate).length,
+    [processes.items]
+  );
+
+  const statusTone = useMemo(() => {
+    if (processes.error) {
+      return "error";
+    }
+
+    if (processes.terminatingPid !== null) {
+      return "warning";
+    }
+
+    if (processes.notice) {
+      return "success";
+    }
+
+    return "info";
+  }, [processes.error, processes.notice, processes.terminatingPid]);
+
   const handleConfirmTerminate = async () => {
     if (!target) {
       return;
@@ -143,27 +164,83 @@ export function App() {
             <h2>Process workspace</h2>
           </div>
           <div className="header-actions">
-            <span className="status-pill">{statusMessage}</span>
+            <span className={`status-pill status-pill--${statusTone}`}>
+              {statusMessage}
+            </span>
           </div>
         </header>
 
+        <div className="workspace-overview" aria-label="Process overview">
+          <article className="overview-card">
+            <span className="meta-label">Visible now</span>
+            <strong>{filteredItems.length}</strong>
+            <p>Current rows in the workspace</p>
+          </article>
+          <article className="overview-card">
+            <span className="meta-label">Protected</span>
+            <strong>{protectedCount}</strong>
+            <p>Processes that cannot be ended here</p>
+          </article>
+          <article className="overview-card">
+            <span className="meta-label">Source</span>
+            <strong>{bootstrap.runtime === "tauri" ? "Live OS" : "Preview"}</strong>
+            <p>
+              {bootstrap.runtime === "tauri"
+                ? "Using Tauri IPC and Rust process core"
+                : "Using local preview fixtures"}
+            </p>
+          </article>
+        </div>
+
         <ProcessToolbar
           query={query}
+          resultCount={filteredItems.length}
+          totalCount={processes.items.length}
           sortMode={sortMode}
           isRefreshing={processes.isRefreshing}
           onQueryChange={setQuery}
           onSortModeChange={setSortMode}
+          onClearQuery={() => setQuery("")}
           onRefresh={() => {
             void processes.refresh();
           }}
         />
 
+        {processes.error ? (
+          <section className="feedback-banner feedback-banner--error" role="alert">
+            <div>
+              <p className="feedback-banner__title">Unable to refresh process list</p>
+              <p className="feedback-banner__copy">{processes.error.message}</p>
+            </div>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                void processes.refresh();
+              }}
+            >
+              Retry
+            </button>
+          </section>
+        ) : processes.notice ? (
+          <section className="feedback-banner feedback-banner--success" role="status">
+            <div>
+              <p className="feedback-banner__title">Latest action</p>
+              <p className="feedback-banner__copy">{processes.notice}</p>
+            </div>
+          </section>
+        ) : null}
+
         <ProcessList
           items={filteredItems}
           error={processes.error}
           isLoading={processes.isLoading}
+          query={query}
           terminatingPid={processes.terminatingPid}
           onTerminate={setTarget}
+          onRetry={() => {
+            void processes.refresh();
+          }}
         />
 
         <footer className="workspace-footer">

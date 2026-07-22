@@ -24,5 +24,18 @@ describe("App", () => {
     expect(
       screen.queryByRole("heading", { name: "Google Chrome" })
     ).not.toBeInTheDocument();
+    expect(screen.getByText("Showing 1 of 5 visible processes")).toBeInTheDocument();
+  });
+
+  it("shows a query-specific empty state when nothing matches", () => {
+    render(<App />);
+
+    fireEvent.change(screen.getByLabelText("Search running apps"), {
+      target: { value: "not-exists" }
+    });
+
+    expect(
+      screen.getByRole("heading", { level: 3, name: "No matching process" })
+    ).toBeInTheDocument();
   });
 });

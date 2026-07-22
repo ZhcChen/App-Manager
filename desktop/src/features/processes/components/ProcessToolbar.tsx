@@ -1,26 +1,54 @@
 type ProcessToolbarProps = {
   query: string;
+  resultCount: number;
+  totalCount: number;
   sortMode: "name" | "pid";
   isRefreshing: boolean;
   onQueryChange: (value: string) => void;
   onSortModeChange: (value: "name" | "pid") => void;
+  onClearQuery: () => void;
   onRefresh: () => void;
 };
 
 export function ProcessToolbar(props: ProcessToolbarProps) {
-  const { query, sortMode, isRefreshing, onQueryChange, onSortModeChange, onRefresh } =
-    props;
+  const {
+    query,
+    resultCount,
+    totalCount,
+    sortMode,
+    isRefreshing,
+    onQueryChange,
+    onSortModeChange,
+    onClearQuery,
+    onRefresh
+  } = props;
 
   return (
     <div className="toolbar">
       <label className="search-field">
         <span className="search-label">Search</span>
-        <input
-          value={query}
-          onChange={(event) => onQueryChange(event.target.value)}
-          placeholder="Search running apps, path, or PID"
-          aria-label="Search running apps"
-        />
+        <div className="search-input-wrap">
+          <input
+            value={query}
+            onChange={(event) => onQueryChange(event.target.value)}
+            placeholder="Search running apps, path, or PID"
+            aria-label="Search running apps"
+          />
+          {query ? (
+            <button
+              type="button"
+              className="text-button search-clear-button"
+              onClick={onClearQuery}
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
+        <span className="field-hint">
+          {query
+            ? `Showing ${resultCount} of ${totalCount} visible processes`
+            : `${totalCount} visible processes`}
+        </span>
       </label>
 
       <label className="sort-field">

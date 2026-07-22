@@ -8,8 +8,10 @@ type ProcessListProps = {
   items: ProcessItem[];
   error: ProcessApiError | null;
   isLoading: boolean;
+  query: string;
   terminatingPid: number | null;
   onTerminate: (item: ProcessItem) => void;
+  onRetry: () => void;
 };
 
 const statusLabel: Record<ProcessItem["status"], string> = {
@@ -18,7 +20,9 @@ const statusLabel: Record<ProcessItem["status"], string> = {
 };
 
 export function ProcessList(props: ProcessListProps) {
-  const { items, error, isLoading, terminatingPid, onTerminate } = props;
+  const { items, error, isLoading, query, terminatingPid, onTerminate, onRetry } =
+    props;
+  const hasQuery = query.trim().length > 0;
 
   if (isLoading) {
     return (
@@ -34,6 +38,13 @@ export function ProcessList(props: ProcessListProps) {
       <div className="empty-state empty-state--error" role="alert">
         <h3>Failed to load processes</h3>
         <p>{error.message}</p>
+        <button
+          type="button"
+          className="secondary-button empty-state__action"
+          onClick={onRetry}
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -41,8 +52,12 @@ export function ProcessList(props: ProcessListProps) {
   if (!items.length) {
     return (
       <div className="empty-state" role="status">
-        <h3>No matching process</h3>
-        <p>Try another search term or refresh the process list.</p>
+        <h3>{hasQuery ? "No matching process" : "No visible processes"}</h3>
+        <p>
+          {hasQuery
+            ? `No process matched "${query}". Try another keyword.`
+            : "No running process is currently visible in this workspace."}
+        </p>
       </div>
     );
   }

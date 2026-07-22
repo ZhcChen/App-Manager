@@ -26,8 +26,10 @@ describe("ProcessList", () => {
         items={[]}
         error={{ code: "operation_failed", message: "load failed" }}
         isLoading={false}
+        query=""
         terminatingPid={null}
         onTerminate={vi.fn()}
+        onRetry={vi.fn()}
       />
     );
 
@@ -45,8 +47,10 @@ describe("ProcessList", () => {
         items={items}
         error={null}
         isLoading={false}
+        query=""
         terminatingPid={null}
         onTerminate={onTerminate}
+        onRetry={vi.fn()}
       />
     );
 
@@ -54,5 +58,24 @@ describe("ProcessList", () => {
 
     expect(onTerminate).toHaveBeenCalledWith(items[0]);
     expect(screen.getByRole("button", { name: "Locked" })).toBeDisabled();
+  });
+
+  it("renders query-specific empty copy", () => {
+    render(
+      <ProcessList
+        items={[]}
+        error={null}
+        isLoading={false}
+        query="slack"
+        terminatingPid={null}
+        onTerminate={vi.fn()}
+        onRetry={vi.fn()}
+      />
+    );
+
+    expect(
+      screen.getByRole("heading", { level: 3, name: "No matching process" })
+    ).toBeInTheDocument();
+    expect(screen.getByText('No process matched "slack". Try another keyword.')).toBeInTheDocument();
   });
 });

@@ -29,6 +29,8 @@ export function useProcesses() {
 
   const refresh = useCallback(
     async (mode: RefreshMode = "manual") => {
+      setError(null);
+
       if (mode === "initial") {
         setIsLoading(true);
       } else if (usesVisibleRefreshState(mode)) {
@@ -78,10 +80,12 @@ export function useProcesses() {
 
       try {
         const result = await terminateProcess(item.pid);
+        setError(null);
         setNotice(`Ended process ${result.name} (${result.pid})`);
         await refresh("background");
         return true;
       } catch (cause) {
+        setNotice(null);
         setError(toProcessApiError(cause));
         return false;
       } finally {
