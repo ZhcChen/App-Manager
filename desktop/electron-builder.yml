@@ -1,0 +1,26 @@
+appId: com.zhcchen.app-manager
+productName: App Manager
+asar: true
+
+directories:
+  output: release
+
+files:
+  - dist/**
+  - dist-electron/**
+  - package.json
+
+extraResources:
+  - from: resources/bin
+    to: bin
+    filter:
+      - "**/*"
+
+mac:
+  category: public.app-category.utilities
+  identity: "-"
+  binaries:
+    - Contents/Resources/bin/process-sidecar
+
+linux:
+  category: Utility

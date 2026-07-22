@@ -3,21 +3,27 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
+  "main": "dist-electron/main.cjs",
   "scripts": {
-    "dev": "tauri dev",
-    "dev:vite": "vite --host 0.0.0.0 --port 1430",
-    "build": "tsc && vite build",
-    "preview": "vite preview",
+    "dev": "pnpm build:sidecar:dev && concurrently -k -n renderer,electron-build,electron -c blue,yellow,green \"pnpm dev:renderer\" \"pnpm dev:electron:watch\" \"pnpm dev:electron:run\"",
+    "dev:renderer": "vite --host 0.0.0.0 --port 1430",
+    "dev:electron:watch": "tsc -p tsconfig.electron.json --watch --preserveWatchOutput",
+    "dev:electron:run": "wait-on tcp:1430 dist-electron/main.cjs dist-electron/preload.cjs && cross-env ELECTRON_RENDERER_URL=http://127.0.0.1:1430 electron dist-electron/main.cjs",
+    "build": "pnpm build:renderer && pnpm build:electron",
+    "build:renderer": "tsc --noEmit && vite build",
+    "build:electron": "tsc -p tsconfig.electron.json",
+    "build:sidecar:dev": "cargo build -p process-sidecar",
+    "build:sidecar:release": "cargo build -p process-sidecar --release && node ./scripts/prepare-sidecar.mjs",
+    "dist": "pnpm build && pnpm build:sidecar:release && electron-builder --config electron-builder.yml",
+    "preview": "vite preview --host 0.0.0.0 --port 1430",
     "test": "vitest run"
   },
   "dependencies": {
     "@app-manager/brand": "workspace:*",
-    "@tauri-apps/api": "^2.8.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },
   "devDependencies": {
-    "@tauri-apps/cli": "^2.8.0",
     "@testing-library/jest-dom": "^6.8.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
@@ -25,9 +31,14 @@
     "@types/react": "^19.1.10",
     "@types/react-dom": "^19.1.7",
     "@vitejs/plugin-react": "^5.0.2",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.0.0",
+    "electron": "^37.2.0",
+    "electron-builder": "^26.0.12",
     "jsdom": "^26.1.0",
     "typescript": "^5.9.2",
     "vite": "^7.1.3",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wait-on": "^8.0.5"
   }
 }

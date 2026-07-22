@@ -1,6 +1,8 @@
+import { getDesktopBridge, isDesktopBridgeAvailable } from "./desktopBridge";
+
 export type DesktopBootstrap = {
   appName: string;
-  runtime: "browser" | "tauri";
+  runtime: "browser" | "electron";
   shell: "desktop";
 };
 
@@ -10,34 +12,22 @@ const FALLBACK_STATE: DesktopBootstrap = {
   shell: "desktop"
 };
 
-type TauriWindow = Window & {
-  __TAURI_INTERNALS__?: unknown;
-};
-
-export function isTauriRuntime(): boolean {
-  if (typeof window === "undefined") {
-    return false;
-  }
-
-  return Boolean((window as TauriWindow).__TAURI_INTERNALS__);
+export function isElectronRuntime(): boolean {
+  return isDesktopBridgeAvailable();
 }
 
 export async function loadDesktopBootstrap(): Promise<DesktopBootstrap> {
-  if (typeof window === "undefined") {
-    return FALLBACK_STATE;
-  }
-
-  if (!isTauriRuntime()) {
+  const bridge = getDesktopBridge();
+  if (!bridge) {
     return FALLBACK_STATE;
   }
 
   try {
-    const { invoke } = await import("@tauri-apps/api/core");
-    return await invoke<DesktopBootstrap>("bootstrap_state");
+    return await bridge.bootstrapState();
   } catch {
     return {
       ...FALLBACK_STATE,
-      runtime: "tauri"
+      runtime: "electron"
     };
   }
 }

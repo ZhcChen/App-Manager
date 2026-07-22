@@ -39,7 +39,7 @@ export function App() {
 
   useEffect(() => {
     void loadDesktopBootstrap().then((result) => {
-      if (result.runtime === "tauri") {
+      if (result.runtime === "electron") {
         setBootstrap(result);
         void processes.refresh("initial");
       }
@@ -73,7 +73,7 @@ export function App() {
       return processes.notice;
     }
 
-    return bootstrap.runtime === "tauri" ? "实时桌面进程视图" : "浏览器预览模式";
+    return bootstrap.runtime === "electron" ? "实时桌面进程视图" : "浏览器预览模式";
   }, [
     bootstrap.runtime,
     processes.error,
@@ -215,7 +215,7 @@ export function App() {
               {statusMessage}
             </span>
             <span className="monitor-header__runtime">
-              {bootstrap.runtime === "tauri" ? "Live OS" : "Preview"}
+              {bootstrap.runtime === "electron" ? "Live OS" : "Preview"}
             </span>
           </div>
         </header>
@@ -366,7 +366,7 @@ export function App() {
           <div className="detail-panel__actions">
             <div className="detail-card">
               <p className="section-label">会话状态</p>
-              <h3>{bootstrap.runtime === "tauri" ? "桌面实时连接" : "浏览器预览"}</h3>
+              <h3>{bootstrap.runtime === "electron" ? "桌面实时连接" : "浏览器预览"}</h3>
               <p>上次刷新 {processes.lastRefresh}</p>
               <p>自动刷新间隔 {formatRefreshCadence()}</p>
               <p>Shell: {bootstrap.shell}</p>

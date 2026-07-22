@@ -4,23 +4,24 @@ import type {
   ProcessItem,
   TerminateProcessResult
 } from "./types";
-import { isTauriRuntime } from "@/lib/desktopRuntime";
+import { getDesktopBridge } from "@/lib/desktopBridge";
 
 let previewProcesses = [...mockProcesses];
 
 export async function listProcesses(): Promise<ProcessItem[]> {
-  if (!isTauriRuntime()) {
+  const bridge = getDesktopBridge();
+  if (!bridge) {
     return [...previewProcesses];
   }
 
-  const { invoke } = await import("@tauri-apps/api/core");
-  return invoke<ProcessItem[]>("list_processes");
+  return bridge.listProcesses();
 }
 
 export async function terminateProcess(
   pid: number
 ): Promise<TerminateProcessResult> {
-  if (!isTauriRuntime()) {
+  const bridge = getDesktopBridge();
+  if (!bridge) {
     const target = previewProcesses.find((item) => item.pid === pid);
 
     if (!target) {
@@ -42,11 +43,14 @@ export async function terminateProcess(
   }
 
   try {
-    const { invoke } = await import("@tauri-apps/api/core");
-    return await invoke<TerminateProcessResult>("terminate_process", { pid });
+    return await bridge.terminateProcess(pid);
   } catch (error) {
     throw toProcessApiError(error);
   }
+}
+
+export function resetPreviewProcesses() {
+  previewProcesses = [...mockProcesses];
 }
 
 export function toProcessApiError(error: unknown): ProcessApiError {

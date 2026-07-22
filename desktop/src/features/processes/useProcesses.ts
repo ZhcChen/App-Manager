@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { isTauriRuntime } from "@/lib/desktopRuntime";
+import { isElectronRuntime } from "@/lib/desktopRuntime";
 import { mockProcesses } from "./mockProcesses";
 import { listProcesses, terminateProcess, toProcessApiError } from "./api";
 import {
@@ -18,7 +18,7 @@ function formatRefreshTime() {
 }
 
 export function useProcesses() {
-  const previewMode = !isTauriRuntime();
+  const previewMode = !isElectronRuntime();
   const [items, setItems] = useState<ProcessItem[]>(previewMode ? mockProcesses : []);
   const [error, setError] = useState<ProcessApiError | null>(null);
   const [isLoading, setIsLoading] = useState(!previewMode);

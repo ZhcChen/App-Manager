@@ -3,5 +3,7 @@ dist/
 coverage/
 target/
 desktop/dist/
-desktop/src-tauri/target/
+desktop/dist-electron/
+desktop/release/
+desktop/resources/bin/
 pnpm-lock.yaml
