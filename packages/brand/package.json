@@ -1,0 +1,11 @@
+{
+  "name": "@app-manager/brand",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./styles/fonts.css": "./styles/fonts.css",
+    "./styles/tokens.css": "./styles/tokens.css",
+    "./logo/app-manager-mark.svg": "./logo/app-manager-mark.svg"
+  }
+}

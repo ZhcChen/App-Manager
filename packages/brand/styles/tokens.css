@@ -1,0 +1,26 @@
+:root {
+  --font-family-ui:
+    "Source Sans 3",
+    "PingFang SC",
+    "Microsoft YaHei",
+    "Noto Sans CJK SC",
+    sans-serif;
+
+  --color-surface-app: #f3f6fb;
+  --color-surface-panel: #ffffff;
+  --color-surface-subtle: #f7f9fc;
+  --color-border-soft: #d7dfeb;
+  --color-border-strong: #93a4bf;
+  --color-text-primary: #102033;
+  --color-text-secondary: #516074;
+  --color-text-muted: #6f7d91;
+  --color-accent-strong: #1d4ed8;
+  --color-accent-soft: #dbe7ff;
+  --color-danger-strong: #d92d20;
+  --color-danger-soft: #fde8e6;
+  --color-success-strong: #137a52;
+  --color-success-soft: #ddf5ea;
+  --color-warning-strong: #a15c00;
+  --color-warning-soft: #fff1d6;
+  --shadow-panel: 0 22px 48px rgba(16, 32, 51, 0.08);
+}

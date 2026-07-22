@@ -1,0 +1,10 @@
+{
+  "name": "app-manager",
+  "private": true,
+  "packageManager": "pnpm@10.33.0",
+  "scripts": {
+    "dev:desktop": "pnpm --dir desktop dev",
+    "build:desktop": "pnpm --dir desktop build",
+    "test:desktop": "pnpm --dir desktop test"
+  }
+}
