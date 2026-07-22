@@ -1,38 +1,51 @@
 type ProcessToolbarProps = {
+  activeViewLabel: string;
   query: string;
   resultCount: number;
   totalCount: number;
-  sortMode: "name" | "pid";
   isRefreshing: boolean;
+  selectedName: string | null;
+  canTerminateSelected: boolean;
   onQueryChange: (value: string) => void;
-  onSortModeChange: (value: "name" | "pid") => void;
   onClearQuery: () => void;
   onRefresh: () => void;
+  onTerminateSelected: () => void;
 };
 
 export function ProcessToolbar(props: ProcessToolbarProps) {
   const {
+    activeViewLabel,
     query,
     resultCount,
     totalCount,
-    sortMode,
     isRefreshing,
+    selectedName,
+    canTerminateSelected,
     onQueryChange,
-    onSortModeChange,
     onClearQuery,
-    onRefresh
+    onRefresh,
+    onTerminateSelected
   } = props;
 
   return (
-    <div className="toolbar">
-      <label className="search-field">
-        <span className="search-label">Search</span>
+    <div className="monitor-toolbar">
+      <div className="monitor-toolbar__meta">
+        <p className="toolbar-title">{activeViewLabel}</p>
+        <p className="toolbar-subtitle">
+          {query
+            ? `显示 ${resultCount} / ${totalCount} 个进程`
+            : `当前共 ${totalCount} 个可见进程`}
+        </p>
+      </div>
+
+      <label className="search-field monitor-toolbar__search">
+        <span className="search-label">搜索</span>
         <div className="search-input-wrap">
           <input
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
-            placeholder="Search running apps, path, or PID"
-            aria-label="Search running apps"
+            placeholder="搜索进程、路径、用户或 PID"
+            aria-label="搜索进程"
           />
           {query ? (
             <button
@@ -40,39 +53,30 @@ export function ProcessToolbar(props: ProcessToolbarProps) {
               className="text-button search-clear-button"
               onClick={onClearQuery}
             >
-              Clear
+              清空
             </button>
           ) : null}
         </div>
-        <span className="field-hint">
-          {query
-            ? `Showing ${resultCount} of ${totalCount} visible processes`
-            : `${totalCount} visible processes`}
-        </span>
       </label>
 
-      <label className="sort-field">
-        <span>Sort</span>
-        <select
-          aria-label="Sort process list"
-          value={sortMode}
-          onChange={(event) =>
-            onSortModeChange(event.target.value as "name" | "pid")
-          }
+      <div className="monitor-toolbar__actions">
+        <button
+          type="button"
+          className="secondary-button"
+          onClick={onRefresh}
+          disabled={isRefreshing}
         >
-          <option value="name">Name</option>
-          <option value="pid">PID</option>
-        </select>
-      </label>
-
-      <button
-        type="button"
-        className="secondary-button toolbar-button"
-        onClick={onRefresh}
-        disabled={isRefreshing}
-      >
-        {isRefreshing ? "Refreshing..." : "Refresh"}
-      </button>
+          {isRefreshing ? "刷新中…" : "刷新"}
+        </button>
+        <button
+          type="button"
+          className="danger-button"
+          onClick={onTerminateSelected}
+          disabled={!selectedName || !canTerminateSelected}
+        >
+          {selectedName ? `结束“${selectedName}”` : "结束进程"}
+        </button>
+      </div>
     </div>
   );
 }

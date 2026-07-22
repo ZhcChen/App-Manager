@@ -11,6 +11,8 @@ fn list_processes_includes_current_process() {
 
     assert_eq!(current.status, process_core::ProcessStatus::Protected);
     assert!(!current.can_terminate);
+    assert!(!current.name.is_empty());
+    assert!(!current.user_name.is_empty());
 }
 
 #[test]

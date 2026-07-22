@@ -21,18 +21,18 @@ export function TerminateDialog(props: TerminateDialogProps) {
         className="dialog"
         role="dialog"
       >
-        <p className="dialog-eyebrow">Confirm action</p>
-        <h2 id="terminate-dialog-title">End process?</h2>
+        <p className="dialog-eyebrow">确认操作</p>
+        <h2 id="terminate-dialog-title">结束该进程？</h2>
         <p className="dialog-copy">
-          <strong>{item.name}</strong> ({item.pid}) will be terminated. Unsaved
-          work may be lost.
+          将结束 <strong>{item.name}</strong> ({item.pid})。如果该进程仍有未保存
+          的工作内容，可能会直接丢失。
         </p>
         <div className="dialog-actions">
           <button type="button" className="secondary-button" onClick={onCancel}>
-            Cancel
+            取消
           </button>
           <button type="button" className="danger-button" onClick={onConfirm}>
-            End app
+            结束进程
           </button>
         </div>
       </section>

@@ -7,12 +7,21 @@ pub enum ProcessStatus {
     Protected,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ProcessItem {
     pub pid: u32,
     pub name: String,
     pub path: String,
+    pub user_name: String,
+    pub kind_label: String,
+    pub cpu_usage_percent: f32,
+    pub memory_bytes: u64,
+    pub virtual_memory_bytes: u64,
+    pub run_time_seconds: u64,
+    pub start_time_seconds: u64,
+    pub disk_read_bytes: u64,
+    pub disk_written_bytes: u64,
     pub status: ProcessStatus,
     pub can_terminate: bool,
 }
