@@ -10,7 +10,7 @@ export default defineConfig({
     }
   },
   server: {
-    port: 1420,
+    port: 18420,
     strictPort: true,
     fs: {
       allow: [path.resolve(__dirname, "..")]
