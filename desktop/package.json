@@ -1,11 +1,12 @@
 {
   "name": "@app-manager/desktop",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "private": true,
   "description": "Cross-platform desktop app manager built with Electron, Rust sidecar, and React.",
   "type": "module",
   "main": "dist-electron/main.cjs",
-  "author": "ZhcChen",
+  "author": "ZhcChen <chen1406736605@gamil.com>",
+  "desktopName": "com.zhcchen.app-manager",
   "homepage": "https://github.com/ZhcChen/App-Manager",
   "repository": {
     "type": "git",

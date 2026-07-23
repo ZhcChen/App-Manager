@@ -38,6 +38,7 @@ win:
 
 linux:
   category: Utility
+  executableName: app-manager
   target:
     - target: AppImage
       arch:
