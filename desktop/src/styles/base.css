@@ -98,8 +98,8 @@ button:disabled {
 .monitor-shell {
   height: 100%;
   min-height: 0;
-  display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
   padding: 12px 16px 12px;
   background: #ffffff;
@@ -520,15 +520,9 @@ button:disabled {
   font-size: var(--font-size-xs);
 }
 
-.monitor-shell > .feedback-banner {
-  grid-row: 3;
-}
-
 .process-table-wrap {
-  grid-row: 4;
+  flex: 1 1 auto;
   min-height: 0;
-  height: 100%;
-  align-self: stretch;
   overflow: auto;
   background: #ffffff;
   border-radius: 18px;
@@ -657,12 +651,7 @@ button:disabled {
   color: var(--color-danger-strong);
 }
 
-.monitor-shell > .empty-state {
-  grid-row: 4;
-}
-
 .detail-panel {
-  grid-row: 5;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 252px;
   align-self: start;
@@ -810,8 +799,8 @@ button:disabled {
 }
 
 .empty-state {
+  flex: 1 1 auto;
   min-height: 0;
-  height: 100%;
   display: grid;
   place-items: center;
   text-align: center;
