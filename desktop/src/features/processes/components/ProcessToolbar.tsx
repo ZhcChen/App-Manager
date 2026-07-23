@@ -1,14 +1,12 @@
-import { ActivityIcon, RefreshIcon, SearchIcon } from "../../../components/icons";
+import { ActivityIcon, SearchIcon } from "../../../components/icons";
 
 type ProcessToolbarProps = {
   activeViewLabel: string;
   query: string;
   resultCount: number;
   totalCount: number;
-  isRefreshing: boolean;
   onQueryChange: (value: string) => void;
   onClearQuery: () => void;
-  onRefresh: () => void;
 };
 
 export function ProcessToolbar(props: ProcessToolbarProps) {
@@ -17,10 +15,8 @@ export function ProcessToolbar(props: ProcessToolbarProps) {
     query,
     resultCount,
     totalCount,
-    isRefreshing,
     onQueryChange,
-    onClearQuery,
-    onRefresh
+    onClearQuery
   } = props;
 
   return (
@@ -56,19 +52,9 @@ export function ProcessToolbar(props: ProcessToolbarProps) {
               className="text-button search-clear-button"
               onClick={onClearQuery}
             >
-              清空
-            </button>
-          ) : null}
-
-          <button
-            type="button"
-            className="secondary-button monitor-toolbar__refresh"
-            onClick={onRefresh}
-            disabled={isRefreshing}
-            aria-label={isRefreshing ? "正在刷新进程列表" : "刷新进程列表"}
-          >
-            <RefreshIcon />
-          </button>
+                清空
+              </button>
+            ) : null}
         </div>
       </div>
     </div>

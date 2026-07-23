@@ -5,9 +5,9 @@ import {
 } from "./refresh-policy";
 
 describe("refresh-policy", () => {
-  it("uses a low-frequency desktop refresh interval", () => {
-    expect(AUTO_REFRESH_INTERVAL_MS).toBe(15_000);
-    expect(formatRefreshCadence()).toBe("15s");
+  it("uses a 1 second desktop refresh interval", () => {
+    expect(AUTO_REFRESH_INTERVAL_MS).toBe(1_000);
+    expect(formatRefreshCadence()).toBe("1s");
   });
 
   it("keeps background refresh silent", () => {

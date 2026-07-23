@@ -204,12 +204,8 @@ export function App() {
           query={query}
           resultCount={filteredItems.length}
           totalCount={processes.items.length}
-          isRefreshing={processes.isRefreshing}
           onQueryChange={setQuery}
           onClearQuery={() => setQuery("")}
-          onRefresh={() => {
-            void processes.refresh();
-          }}
         />
 
         {processes.error ? (
