@@ -8,8 +8,18 @@
   --font-size-md: 14px;
   --font-size-lg: 16px;
   --font-size-xl: 18px;
-  --shadow-float-soft: 0 10px 24px rgba(16, 32, 51, 0.06);
-  --shadow-float-strong: 0 18px 34px rgba(16, 32, 51, 0.08);
+  --shadow-float-soft:
+    0 0 0 1px rgba(16, 32, 51, 0.03),
+    0 6px 12px rgba(16, 32, 51, 0.04),
+    0 16px 32px rgba(16, 32, 51, 0.08);
+  --shadow-float-strong:
+    0 0 0 1px rgba(16, 32, 51, 0.03),
+    0 10px 22px rgba(16, 32, 51, 0.06),
+    0 24px 48px rgba(16, 32, 51, 0.12);
+  --shadow-float-hover:
+    0 0 0 1px rgba(16, 32, 51, 0.04),
+    0 14px 28px rgba(16, 32, 51, 0.08),
+    0 30px 60px rgba(16, 32, 51, 0.14);
   font-synthesis: none;
   line-height: 1.4;
   text-rendering: optimizeLegibility;
@@ -170,7 +180,9 @@ button:disabled {
 .view-tabs button.is-active {
   background: #ffffff;
   color: var(--color-text-primary);
-  box-shadow: 0 4px 10px rgba(16, 32, 51, 0.08);
+  box-shadow:
+    0 0 0 1px rgba(16, 32, 51, 0.03),
+    0 8px 18px rgba(16, 32, 51, 0.1);
 }
 
 .monitor-toolbar {
@@ -179,7 +191,7 @@ button:disabled {
   padding: 12px 14px;
   border-radius: 16px;
   background: #ffffff;
-  box-shadow: var(--shadow-float-soft);
+  box-shadow: var(--shadow-float-strong);
 }
 
 .monitor-toolbar__meta {
@@ -362,7 +374,7 @@ button:disabled {
   padding: 14px 16px;
   border-radius: 18px;
   background: #ffffff;
-  box-shadow: var(--shadow-float-soft);
+  box-shadow: var(--shadow-float-strong);
 }
 
 .monitor-summary__primary {
@@ -451,7 +463,7 @@ button:disabled {
   gap: 12px;
   padding: 11px 14px;
   border-radius: 14px;
-  box-shadow: var(--shadow-float-soft);
+  box-shadow: var(--shadow-float-strong);
 }
 
 .feedback-banner--success {
@@ -509,7 +521,7 @@ button:disabled {
   scrollbar-gutter: stable;
   background: #ffffff;
   border-radius: 18px;
-  box-shadow: var(--shadow-float-soft);
+  box-shadow: var(--shadow-float-strong);
 }
 
 .process-table {
@@ -647,7 +659,7 @@ button:disabled {
   padding: 14px 16px;
   border-radius: 18px;
   background: #ffffff;
-  box-shadow: var(--shadow-float-soft);
+  box-shadow: var(--shadow-float-strong);
 }
 
 .detail-panel__selection,
@@ -793,7 +805,7 @@ button:disabled {
   text-align: center;
   border-radius: 18px;
   background: #ffffff;
-  box-shadow: var(--shadow-float-soft);
+  box-shadow: var(--shadow-float-strong);
   color: var(--color-text-secondary);
 }
 
