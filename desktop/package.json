@@ -14,6 +14,7 @@
     "build:electron": "tsc -p tsconfig.electron.json",
     "build:sidecar:dev": "cargo build -p process-sidecar",
     "build:sidecar:release": "cargo build -p process-sidecar --release && node ./scripts/prepare-sidecar.mjs",
+    "preview:mac": "pnpm build && pnpm build:sidecar:release && electron-builder --config electron-builder.yml --dir --mac && node ./scripts/open-macos-preview.mjs",
     "dist": "pnpm build && pnpm build:sidecar:release && electron-builder --config electron-builder.yml",
     "preview": "vite preview --host 0.0.0.0 --port 1430",
     "test": "vitest run"
