@@ -62,37 +62,6 @@ export function App() {
     setSortDirection(next.direction);
   }, [activeView]);
 
-  const statusMessage = useMemo(() => {
-    if (processes.error) {
-      return processes.error.message;
-    }
-
-    if (processes.isLoading) {
-      return "正在载入进程列表";
-    }
-
-    if (processes.isRefreshing) {
-      return "正在刷新进程视图";
-    }
-
-    if (processes.terminatingPid !== null) {
-      return "正在结束选中进程";
-    }
-
-    if (processes.notice) {
-      return processes.notice;
-    }
-
-    return bootstrap.runtime === "electron" ? "实时桌面进程视图" : "浏览器预览模式";
-  }, [
-    bootstrap.runtime,
-    processes.error,
-    processes.isLoading,
-    processes.isRefreshing,
-    processes.notice,
-    processes.terminatingPid
-  ]);
-
   const filteredItems = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     const next = processes.items.filter((item) => {
@@ -165,22 +134,6 @@ export function App() {
     return processes.items.filter((item) => !item.canTerminate).length;
   }, [processes.items]);
 
-  const statusTone = useMemo(() => {
-    if (processes.error) {
-      return "error";
-    }
-
-    if (processes.terminatingPid !== null) {
-      return "warning";
-    }
-
-    if (processes.notice) {
-      return "success";
-    }
-
-    return "info";
-  }, [processes.error, processes.notice, processes.terminatingPid]);
-
   const totalCpuUsage = useMemo(() => {
     return filteredItems.reduce((sum, item) => sum + item.cpuUsagePercent, 0);
   }, [filteredItems]);
@@ -226,15 +179,6 @@ export function App() {
               </button>
             ))}
           </nav>
-
-          <div className="monitor-header__status">
-            <span className={`status-pill status-pill--${statusTone}`}>
-              {statusMessage}
-            </span>
-            <span className="monitor-header__runtime">
-              {bootstrap.runtime === "electron" ? "Live OS" : "Preview"}
-            </span>
-          </div>
         </header>
 
         <ProcessToolbar
