@@ -170,10 +170,8 @@ button:disabled {
 .monitor-toolbar {
   justify-content: space-between;
   gap: 12px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: #f7f9fc;
-  border: 1px solid #d8e0ec;
+  padding: 8px 0 12px;
+  border-bottom: 1px solid var(--color-border-soft);
 }
 
 .monitor-toolbar__meta {
@@ -288,10 +286,8 @@ button:disabled {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 12px;
-  padding: 8px 12px;
-  border-radius: 12px;
-  background: #f8fafd;
-  border: 1px solid #d8e0ec;
+  padding: 10px 0 12px;
+  border-bottom: 1px solid var(--color-border-soft);
 }
 
 .monitor-summary__primary {
@@ -361,9 +357,8 @@ button:disabled {
 .feedback-banner {
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid var(--color-border-soft);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border-soft);
 }
 
 .feedback-banner--success {
@@ -396,8 +391,7 @@ button:disabled {
   align-self: stretch;
   overflow: auto;
   scrollbar-gutter: stable;
-  border: 1px solid var(--color-border-soft);
-  border-radius: 12px;
+  border-top: 1px solid var(--color-border-soft);
   background: #ffffff;
 }
 
@@ -419,7 +413,7 @@ button:disabled {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: #f8f9fb;
+  background: #ffffff;
 }
 
 .column-sort-button {
@@ -529,10 +523,8 @@ button:disabled {
   align-self: start;
   align-items: stretch;
   gap: 12px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: #f8fafd;
-  border: 1px solid #d8e0ec;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--color-border-soft);
 }
 
 .detail-panel__selection,
@@ -580,10 +572,7 @@ button:disabled {
 }
 
 .detail-card {
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: #ffffff;
-  border: 1px solid var(--color-border-soft);
+  padding: 0;
 }
 
 .detail-card h3 {
