@@ -842,6 +842,7 @@ button:disabled {
 .dialog-backdrop {
   position: fixed;
   inset: 0;
+  z-index: 1000;
   display: grid;
   place-items: center;
   padding: 24px;
@@ -849,6 +850,7 @@ button:disabled {
 }
 
 .dialog {
+  position: relative;
   width: min(100%, 420px);
   padding: 20px;
   border-radius: 16px;
