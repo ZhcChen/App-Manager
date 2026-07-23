@@ -24,3 +24,10 @@ export type ProcessApiError = {
   code: string;
   message: string;
 };
+
+export type ProcessFeedback = {
+  id: number;
+  tone: "success" | "error";
+  title: string;
+  message: string;
+};

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isElectronRuntime } from "@/lib/desktopRuntime";
 import { mockProcesses } from "./mockProcesses";
 import { listProcesses, terminateProcess, toProcessApiError } from "./api";
@@ -7,7 +7,7 @@ import {
   type RefreshMode,
   usesVisibleRefreshState
 } from "./refresh-policy";
-import type { ProcessApiError, ProcessItem } from "./types";
+import type { ProcessApiError, ProcessFeedback, ProcessItem } from "./types";
 
 function formatRefreshTime() {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -25,7 +25,21 @@ export function useProcesses() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [terminatingPid, setTerminatingPid] = useState<number | null>(null);
   const [lastRefresh, setLastRefresh] = useState(previewMode ? formatRefreshTime() : "--:--:--");
-  const [notice, setNotice] = useState<string | null>(null);
+  const [feedback, setFeedback] = useState<ProcessFeedback | null>(null);
+  const feedbackIdRef = useRef(0);
+
+  const pushFeedback = useCallback(
+    (tone: ProcessFeedback["tone"], title: string, message: string) => {
+      feedbackIdRef.current += 1;
+      setFeedback({
+        id: feedbackIdRef.current,
+        tone,
+        title,
+        message
+      });
+    },
+    []
+  );
 
   const refresh = useCallback(
     async (mode: RefreshMode = "manual") => {
@@ -43,10 +57,14 @@ export function useProcesses() {
         setError(null);
         setLastRefresh(formatRefreshTime());
         if (mode === "manual") {
-          setNotice(`已刷新 ${next.length} 个进程`);
+          pushFeedback("success", "最近动作", `已刷新 ${next.length} 个进程`);
         }
       } catch (cause) {
-        setError(toProcessApiError(cause));
+        const nextError = toProcessApiError(cause);
+        setError(nextError);
+        if (mode !== "background") {
+          pushFeedback("error", "进程列表更新失败", nextError.message);
+        }
       } finally {
         if (mode === "initial") {
           setIsLoading(false);
@@ -57,7 +75,7 @@ export function useProcesses() {
         }
       }
     },
-    []
+    [pushFeedback]
   );
 
   useEffect(() => {
@@ -81,19 +99,30 @@ export function useProcesses() {
       try {
         const result = await terminateProcess(item.pid);
         setError(null);
-        setNotice(`已结束 ${result.name}（${result.pid}）`);
+        pushFeedback("success", "最近动作", `已结束 ${result.name}（${result.pid}）`);
         await refresh("background");
         return true;
       } catch (cause) {
-        setNotice(null);
-        setError(toProcessApiError(cause));
+        const nextError = toProcessApiError(cause);
+        setError(nextError);
+        pushFeedback("error", "结束进程失败", nextError.message);
         return false;
       } finally {
         setTerminatingPid(null);
       }
     },
-    [refresh]
+    [pushFeedback, refresh]
   );
+
+  const dismissFeedback = useCallback((feedbackId: number) => {
+    setFeedback((current) => {
+      if (!current || current.id !== feedbackId) {
+        return current;
+      }
+
+      return null;
+    });
+  }, []);
 
   const state = useMemo(
     () => ({
@@ -103,14 +132,15 @@ export function useProcesses() {
       isRefreshing,
       terminatingPid,
       lastRefresh,
-      notice
+      feedback
     }),
-    [items, error, isLoading, isRefreshing, terminatingPid, lastRefresh, notice]
+    [items, error, isLoading, isRefreshing, terminatingPid, lastRefresh, feedback]
   );
 
   return {
     ...state,
     refresh,
-    terminate
+    terminate,
+    dismissFeedback
   };
 }

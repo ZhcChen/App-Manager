@@ -2,13 +2,12 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import appManagerMarkUrl from "@app-manager/brand/logo/app-manager-mark.svg";
 import {
   ActivityIcon,
-  AlertIcon,
   AppTileIcon,
   DesktopIcon,
   RefreshIcon,
-  StopIcon,
-  SuccessIcon
+  StopIcon
 } from "./components/icons";
+import { TransientToast } from "./components/TransientToast";
 import { getDesktopBridge } from "./lib/desktopBridge";
 import { loadDesktopBootstrap, type DesktopBootstrap } from "./lib/desktopRuntime";
 import { canTerminateProcess } from "./features/processes/guards";
@@ -208,41 +207,6 @@ export function App() {
           onClearQuery={() => setQuery("")}
         />
 
-        {processes.error ? (
-          <section className="feedback-banner feedback-banner--error" role="alert">
-            <div className="feedback-banner__main">
-              <span className="feedback-banner__icon" aria-hidden="true">
-                <AlertIcon />
-              </span>
-              <div>
-                <p className="feedback-banner__title">进程列表更新失败</p>
-                <p className="feedback-banner__copy">{processes.error.message}</p>
-              </div>
-            </div>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => {
-                void processes.refresh();
-              }}
-            >
-              重试
-            </button>
-          </section>
-        ) : processes.notice ? (
-          <section className="feedback-banner feedback-banner--success" role="status">
-            <div className="feedback-banner__main">
-              <span className="feedback-banner__icon" aria-hidden="true">
-                <SuccessIcon />
-              </span>
-              <div>
-                <p className="feedback-banner__title">最近动作</p>
-                <p className="feedback-banner__copy">{processes.notice}</p>
-              </div>
-            </div>
-          </section>
-        ) : null}
-
         <ProcessList
           items={filteredItems}
           columns={PROCESS_VIEW_CONFIG[activeView].columns}
@@ -394,6 +358,11 @@ export function App() {
         item={target}
         onCancel={() => setTarget(null)}
         onConfirm={handleConfirmTerminate}
+      />
+
+      <TransientToast
+        item={processes.feedback}
+        onClear={processes.dismissFeedback}
       />
     </main>
   );
