@@ -36,7 +36,7 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
 
   build:
-    name: Build ${{ matrix.platform.name }}
+    name: Build ${{ matrix.platform.name }} ${{ matrix.platform.arch }}
     needs: validate-tag
     runs-on: ${{ matrix.platform.runner }}
     strategy:
@@ -45,16 +45,40 @@ jobs:
         platform:
           - name: macOS
             runner: macos-latest
-            dist_script: dist:mac
-            artifact_name: desktop-macos-assets
+            target_flag: --mac
+            arch: arm64
+            arch_flag: --arm64
+            artifact_name: desktop-macos-arm64-assets
+          - name: macOS
+            runner: macos-15-intel
+            target_flag: --mac
+            arch: x64
+            arch_flag: --x64
+            artifact_name: desktop-macos-x64-assets
           - name: Windows
             runner: windows-latest
-            dist_script: dist:win
-            artifact_name: desktop-windows-assets
+            target_flag: --win
+            arch: x64
+            arch_flag: --x64
+            artifact_name: desktop-windows-x64-assets
+          - name: Windows
+            runner: windows-11-arm
+            target_flag: --win
+            arch: arm64
+            arch_flag: --arm64
+            artifact_name: desktop-windows-arm64-assets
           - name: Linux
             runner: ubuntu-latest
-            dist_script: dist:linux
-            artifact_name: desktop-linux-assets
+            target_flag: --linux
+            arch: x64
+            arch_flag: --x64
+            artifact_name: desktop-linux-x64-assets
+          - name: Linux
+            runner: ubuntu-24.04-arm
+            target_flag: --linux
+            arch: arm64
+            arch_flag: --arm64
+            artifact_name: desktop-linux-arm64-assets
 
     steps:
       - name: Checkout
@@ -83,7 +107,7 @@ jobs:
         run: pnpm --dir desktop test
 
       - name: Build release packages
-        run: pnpm --dir desktop ${{ matrix.platform.dist_script }}
+        run: pnpm --dir desktop dist:ci -- ${{ matrix.platform.target_flag }} ${{ matrix.platform.arch_flag }}
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
 

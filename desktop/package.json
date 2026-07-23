@@ -1,6 +1,6 @@
 {
   "name": "@app-manager/desktop",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "private": true,
   "description": "Cross-platform desktop app manager built with Electron, Rust sidecar, and React.",
   "type": "module",
@@ -22,6 +22,7 @@
     "build:electron": "tsc -p tsconfig.electron.json",
     "build:sidecar:dev": "cargo build -p process-sidecar",
     "build:sidecar:release": "cargo build -p process-sidecar --release && node ./scripts/prepare-sidecar.mjs",
+    "dist:ci": "pnpm build && pnpm build:sidecar:release && node ./scripts/run-electron-builder.mjs",
     "verify:release-tag": "node ./scripts/verify-release-version.mjs",
     "collect:release-assets": "node ./scripts/collect-release-assets.mjs",
     "preview:mac": "pnpm build && pnpm build:sidecar:release && electron-builder --config electron-builder.yml --dir --mac && node ./scripts/open-macos-preview.mjs",
