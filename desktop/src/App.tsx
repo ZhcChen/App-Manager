@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import appManagerMarkUrl from "@app-manager/brand/logo/app-manager-mark.svg";
 import {
   ActivityIcon,
@@ -142,6 +142,13 @@ export function App() {
     return filteredItems.reduce((sum, item) => sum + item.memoryBytes, 0);
   }, [filteredItems]);
 
+  const viewTabsStyle = useMemo(() => {
+    return {
+      "--tab-count": String(PROCESS_VIEW_ORDER.length),
+      "--tab-active-index": String(PROCESS_VIEW_ORDER.indexOf(activeView))
+    } as CSSProperties;
+  }, [activeView]);
+
   const handleConfirmTerminate = async () => {
     if (!target) {
       return;
@@ -167,7 +174,8 @@ export function App() {
             </div>
           </div>
 
-          <nav className="view-tabs" aria-label="监视视图">
+          <nav className="view-tabs" aria-label="监视视图" style={viewTabsStyle}>
+            <span className="view-tabs__indicator" aria-hidden="true" />
             {PROCESS_VIEW_ORDER.map((view) => (
               <button
                 key={view}
