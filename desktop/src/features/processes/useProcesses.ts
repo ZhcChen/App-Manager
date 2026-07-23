@@ -4,6 +4,7 @@ import { mockProcesses } from "./mockProcesses";
 import { listProcesses, terminateProcess, toProcessApiError } from "./api";
 import {
   AUTO_REFRESH_INTERVAL_MS,
+  type AutoRefreshIntervalMs,
   type RefreshMode,
   usesVisibleRefreshState
 } from "./refresh-policy";
@@ -17,7 +18,9 @@ function formatRefreshTime() {
   }).format(new Date());
 }
 
-export function useProcesses() {
+export function useProcesses(
+  autoRefreshIntervalMs: AutoRefreshIntervalMs = AUTO_REFRESH_INTERVAL_MS
+) {
   const previewMode = !isElectronRuntime();
   const [items, setItems] = useState<ProcessItem[]>(previewMode ? mockProcesses : []);
   const [error, setError] = useState<ProcessApiError | null>(null);
@@ -85,12 +88,12 @@ export function useProcesses() {
 
     const timer = window.setInterval(() => {
       void refresh("background");
-    }, AUTO_REFRESH_INTERVAL_MS);
+    }, autoRefreshIntervalMs);
 
     return () => {
       window.clearInterval(timer);
     };
-  }, [previewMode, refresh]);
+  }, [autoRefreshIntervalMs, previewMode, refresh]);
 
   const terminate = useCallback(
     async (item: ProcessItem) => {

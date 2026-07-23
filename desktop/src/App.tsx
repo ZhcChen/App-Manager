@@ -7,6 +7,13 @@ import { canTerminateProcess } from "./features/processes/guards";
 import { ProcessList } from "./features/processes/components/ProcessList";
 import { ProcessToolbar } from "./features/processes/components/ProcessToolbar";
 import { TerminateDialog } from "./features/processes/components/TerminateDialog";
+import {
+  AUTO_REFRESH_INTERVAL_MS,
+  AUTO_REFRESH_INTERVAL_OPTIONS_MS,
+  formatRefreshCadence,
+  isAutoRefreshIntervalMs,
+  type AutoRefreshIntervalMs
+} from "./features/processes/refresh-policy";
 import type { ProcessItem } from "./features/processes/types";
 import { useProcesses } from "./features/processes/useProcesses";
 import {
@@ -18,8 +25,32 @@ import {
   getMetricValue
 } from "./features/processes/view-config";
 
+const AUTO_REFRESH_INTERVAL_STORAGE_KEY = "app-manager:auto-refresh-interval";
+
+function getInitialAutoRefreshInterval(): AutoRefreshIntervalMs {
+  if (typeof window === "undefined") {
+    return AUTO_REFRESH_INTERVAL_MS;
+  }
+
+  try {
+    const rawValue = window.localStorage.getItem(AUTO_REFRESH_INTERVAL_STORAGE_KEY);
+    if (!rawValue) {
+      return AUTO_REFRESH_INTERVAL_MS;
+    }
+
+    const parsedValue = Number(rawValue);
+    return isAutoRefreshIntervalMs(parsedValue)
+      ? parsedValue
+      : AUTO_REFRESH_INTERVAL_MS;
+  } catch {
+    return AUTO_REFRESH_INTERVAL_MS;
+  }
+}
+
 export function App() {
   const [activeView, setActiveView] = useState<ProcessViewId>("cpu");
+  const [autoRefreshIntervalMs, setAutoRefreshIntervalMs] =
+    useState<AutoRefreshIntervalMs>(getInitialAutoRefreshInterval);
   const [query, setQuery] = useState("");
   const [selectedPid, setSelectedPid] = useState<number | null>(null);
   const [target, setTarget] = useState<ProcessItem | null>(null);
@@ -29,7 +60,18 @@ export function App() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">(
     PROCESS_VIEW_CONFIG.cpu.defaultSort.direction
   );
-  const processes = useProcesses();
+  const processes = useProcesses(autoRefreshIntervalMs);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(
+        AUTO_REFRESH_INTERVAL_STORAGE_KEY,
+        String(autoRefreshIntervalMs)
+      );
+    } catch {
+      // Ignore storage failures and keep the in-memory preference.
+    }
+  }, [autoRefreshIntervalMs]);
 
   useEffect(() => {
     void loadDesktopBootstrap().then((result) => {
@@ -175,6 +217,30 @@ export function App() {
               </button>
             ))}
           </nav>
+
+          <div className="monitor-header__actions">
+            <label className="refresh-interval-control">
+              <span className="refresh-interval-control__label">自动刷新</span>
+              <span className="refresh-interval-control__field">
+                <select
+                  aria-label="自动刷新间隔"
+                  value={String(autoRefreshIntervalMs)}
+                  onChange={(event) => {
+                    const nextValue = Number(event.target.value);
+                    if (isAutoRefreshIntervalMs(nextValue)) {
+                      setAutoRefreshIntervalMs(nextValue);
+                    }
+                  }}
+                >
+                  {AUTO_REFRESH_INTERVAL_OPTIONS_MS.map((intervalMs) => (
+                    <option key={intervalMs} value={String(intervalMs)}>
+                      {formatRefreshCadence(intervalMs)}
+                    </option>
+                  ))}
+                </select>
+              </span>
+            </label>
+          </div>
         </header>
 
         <ProcessToolbar
