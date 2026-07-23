@@ -385,7 +385,6 @@ button:disabled {
   color: var(--color-text-muted);
 }
 
-.monitor-toolbar__search-input input:focus,
 .search-field input:focus,
 .secondary-button:focus,
 .danger-button:focus,
@@ -393,6 +392,10 @@ button:disabled {
 .column-sort-button:focus {
   outline: 2px solid var(--color-accent-strong);
   outline-offset: 2px;
+}
+
+.monitor-toolbar__search-input input:focus {
+  outline: none;
 }
 
 .search-clear-button {
