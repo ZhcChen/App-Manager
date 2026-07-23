@@ -38,8 +38,8 @@ describe("App", () => {
     expect(within(table).getByText("WeChat")).toBeInTheDocument();
     expect(within(table).queryByText("Google Chrome")).not.toBeInTheDocument();
     expect(
-      screen.getByText(/显示 1 \/ 5 个进程/, {
-        selector: ".monitor-toolbar__overview-copy p:not(.section-label)"
+      screen.getByText(/已筛选 1 \/ 5 个进程/, {
+        selector: ".monitor-toolbar__overview-copy p"
       })
     ).toBeInTheDocument();
   });

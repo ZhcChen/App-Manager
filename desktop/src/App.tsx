@@ -131,18 +131,6 @@ export function App() {
     return filteredItems.find((item) => item.pid === selectedPid) ?? null;
   }, [filteredItems, selectedPid]);
 
-  const protectedCount = useMemo(() => {
-    return processes.items.filter((item) => !item.canTerminate).length;
-  }, [processes.items]);
-
-  const totalCpuUsage = useMemo(() => {
-    return filteredItems.reduce((sum, item) => sum + item.cpuUsagePercent, 0);
-  }, [filteredItems]);
-
-  const totalMemoryBytes = useMemo(() => {
-    return filteredItems.reduce((sum, item) => sum + item.memoryBytes, 0);
-  }, [filteredItems]);
-
   useEffect(() => {
     const bridge = getDesktopBridge();
     if (!bridge?.onProcessContextAction) {
@@ -217,9 +205,6 @@ export function App() {
           query={query}
           resultCount={filteredItems.length}
           totalCount={processes.items.length}
-          totalCpuUsage={totalCpuUsage}
-          totalMemoryBytes={totalMemoryBytes}
-          protectedCount={protectedCount}
           isRefreshing={processes.isRefreshing}
           onQueryChange={setQuery}
           onClearQuery={() => setQuery("")}

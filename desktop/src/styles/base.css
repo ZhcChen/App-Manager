@@ -231,9 +231,9 @@ button:disabled {
 
 .monitor-toolbar {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(260px, 360px) auto;
+  grid-template-columns: minmax(300px, 1fr) minmax(420px, 680px);
   align-items: center;
-  gap: 14px;
+  gap: 20px;
   padding: 14px 16px;
   border-radius: 16px;
   background: #ffffff;
@@ -281,20 +281,36 @@ button:disabled {
   min-width: 0;
 }
 
+.monitor-toolbar__overview-headline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
 .monitor-toolbar__overview-copy h2 {
   margin: 0;
   font-size: 15px;
   line-height: 1.15;
 }
 
-.monitor-toolbar__overview-copy p:not(.section-label) {
+.monitor-toolbar__overview-copy p {
   margin: 4px 0 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
 }
 
-.monitor-toolbar__dot {
-  margin: 0 6px;
+.monitor-toolbar__count {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #f3f5f8;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .monitor-toolbar__overview-icon svg,
@@ -312,16 +328,20 @@ button:disabled {
 }
 
 .monitor-toolbar__search {
-  flex: 1 1 auto;
-  max-width: 380px;
+  min-width: 0;
 }
 
-.monitor-toolbar__cluster {
+.monitor-toolbar__controls {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.monitor-toolbar__search-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  align-items: end;
   gap: 12px;
-  min-width: 0;
 }
 
 .search-field {
@@ -459,15 +479,15 @@ button:disabled {
   white-space: nowrap;
 }
 
-.monitor-toolbar__stats {
-  min-width: 0;
-}
-
 .monitor-toolbar__hint {
   margin: 0;
   color: var(--color-text-secondary);
   font-size: var(--font-size-2xs);
-  white-space: nowrap;
+  text-align: right;
+}
+
+.monitor-toolbar__refresh {
+  min-width: 100px;
 }
 
 .feedback-banner {
@@ -883,13 +903,14 @@ button:disabled {
     justify-self: start;
   }
 
-  .monitor-toolbar__cluster {
+  .monitor-toolbar__search-row {
     grid-template-columns: 1fr;
+    align-items: stretch;
   }
 
-  .monitor-toolbar__actions {
-    justify-items: start;
-    min-width: 0;
+  .monitor-toolbar__actions,
+  .monitor-toolbar__hint {
+    text-align: left;
   }
 
   .detail-panel {
