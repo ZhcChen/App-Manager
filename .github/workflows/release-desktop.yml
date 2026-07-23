@@ -136,7 +136,7 @@ jobs:
           package-manager-cache: false
 
       - name: Download built assets
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           path: .artifacts/downloaded-assets
 
