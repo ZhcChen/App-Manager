@@ -166,10 +166,9 @@ button:disabled {
 .view-tabs {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: center;
   gap: 0;
-  width: min(100%, 468px);
+  width: min(100%, 552px);
   padding: 4px;
   justify-self: center;
   border-radius: 999px;
@@ -668,6 +667,52 @@ button:disabled {
 .metric-busy {
   color: var(--color-text-secondary);
   font-size: var(--font-size-xs);
+}
+
+.port-cell__binding {
+  display: grid;
+  gap: 2px;
+}
+
+.port-cell__binding strong,
+.port-cell__binding span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.port-cell__binding strong {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.port-cell__binding span {
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+}
+
+.protocol-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  min-width: 52px;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.protocol-chip--tcp {
+  background: #eff5ff;
+  color: #2458b8;
+}
+
+.protocol-chip--udp {
+  background: #eef8f3;
+  color: #1f7a4f;
 }
 
 .align-end {

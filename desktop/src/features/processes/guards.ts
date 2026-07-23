@@ -1,15 +1,19 @@
-import type { ProcessItem } from "./types";
+type TerminableItem = {
+  status: "running" | "protected";
+  canTerminate: boolean;
+  pid: number;
+};
 
-export function isProtectedProcess(item: ProcessItem): boolean {
+export function isProtectedProcess(item: TerminableItem): boolean {
   return item.status === "protected" || !item.canTerminate;
 }
 
-export function canTerminateProcess(item: ProcessItem): boolean {
+export function canTerminateProcess(item: TerminableItem): boolean {
   return !isProtectedProcess(item);
 }
 
 export function getTerminateActionLabel(
-  item: ProcessItem,
+  item: TerminableItem,
   terminatingPid: number | null
 ): string {
   if (terminatingPid === item.pid) {

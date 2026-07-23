@@ -55,6 +55,18 @@ export function ActivityIcon(props: IconProps) {
   );
 }
 
+export function PortIcon(props: IconProps) {
+  return (
+    <BaseIcon {...props}>
+      <path d="M4 5.5h12" />
+      <path d="M6.5 5.5v4" />
+      <path d="M13.5 5.5v4" />
+      <path d="M10 9.5v5" />
+      <path d="M7 14.5h6" />
+    </BaseIcon>
+  );
+}
+
 export function DesktopIcon(props: IconProps) {
   return (
     <BaseIcon {...props}>

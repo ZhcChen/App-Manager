@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isElectronRuntime } from "@/lib/desktopRuntime";
-import { mockProcesses } from "./mockProcesses";
-import { listProcesses, terminateProcess, toProcessApiError } from "./api";
 import {
   AUTO_REFRESH_INTERVAL_MS,
   type AutoRefreshIntervalMs,
   type RefreshMode,
   usesVisibleRefreshState
-} from "./refresh-policy";
-import type { ProcessApiError, ProcessFeedback, ProcessItem } from "./types";
+} from "@/features/processes/refresh-policy";
+import type {
+  ProcessApiError,
+  ProcessFeedback
+} from "@/features/processes/types";
+import { toProcessApiError } from "@/features/processes/api";
+import { listPorts } from "./api";
+import { mockPorts } from "./mockPorts";
+import type { PortBindingItem } from "./types";
 
 function formatRefreshTime() {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -18,16 +23,17 @@ function formatRefreshTime() {
   }).format(new Date());
 }
 
-export function useProcesses(
+export function usePorts(
   autoRefreshIntervalMs: AutoRefreshIntervalMs = AUTO_REFRESH_INTERVAL_MS
 ) {
   const previewMode = !isElectronRuntime();
-  const [items, setItems] = useState<ProcessItem[]>(previewMode ? mockProcesses : []);
+  const [items, setItems] = useState<PortBindingItem[]>(previewMode ? mockPorts : []);
   const [error, setError] = useState<ProcessApiError | null>(null);
   const [isLoading, setIsLoading] = useState(!previewMode);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [terminatingPid, setTerminatingPid] = useState<number | null>(null);
-  const [lastRefresh, setLastRefresh] = useState(previewMode ? formatRefreshTime() : "--:--:--");
+  const [lastRefresh, setLastRefresh] = useState(
+    previewMode ? formatRefreshTime() : "--:--:--"
+  );
   const [feedback, setFeedback] = useState<ProcessFeedback | null>(null);
   const feedbackIdRef = useRef(0);
 
@@ -45,7 +51,13 @@ export function useProcesses(
   );
 
   const refresh = useCallback(
-    async (mode: RefreshMode = "manual") => {
+    async (
+      mode: RefreshMode = "manual",
+      options: {
+        reportFailure?: boolean;
+      } = {}
+    ) => {
+      const reportFailure = options.reportFailure ?? mode !== "background";
       setError(null);
 
       if (mode === "initial") {
@@ -55,18 +67,18 @@ export function useProcesses(
       }
 
       try {
-        const next = await listProcesses();
+        const next = await listPorts();
         setItems(next);
         setError(null);
         setLastRefresh(formatRefreshTime());
         if (mode === "manual") {
-          pushFeedback("success", "最近动作", `已刷新 ${next.length} 个进程`);
+          pushFeedback("success", "最近动作", `已刷新 ${next.length} 个端口占用`);
         }
       } catch (cause) {
         const nextError = toProcessApiError(cause);
         setError(nextError);
-        if (mode !== "background") {
-          pushFeedback("error", "进程列表更新失败", nextError.message);
+        if (reportFailure) {
+          pushFeedback("error", "端口列表更新失败", nextError.message);
         }
       } finally {
         if (mode === "initial") {
@@ -95,28 +107,6 @@ export function useProcesses(
     };
   }, [autoRefreshIntervalMs, previewMode, refresh]);
 
-  const terminate = useCallback(
-    async (item: Pick<ProcessItem, "pid" | "name">) => {
-      setTerminatingPid(item.pid);
-
-      try {
-        const result = await terminateProcess(item.pid);
-        setError(null);
-        pushFeedback("success", "最近动作", `已结束 ${result.name}（${result.pid}）`);
-        await refresh("background");
-        return true;
-      } catch (cause) {
-        const nextError = toProcessApiError(cause);
-        setError(nextError);
-        pushFeedback("error", "结束进程失败", nextError.message);
-        return false;
-      } finally {
-        setTerminatingPid(null);
-      }
-    },
-    [pushFeedback, refresh]
-  );
-
   const dismissFeedback = useCallback((feedbackId: number) => {
     setFeedback((current) => {
       if (!current || current.id !== feedbackId) {
@@ -133,17 +123,15 @@ export function useProcesses(
       error,
       isLoading,
       isRefreshing,
-      terminatingPid,
       lastRefresh,
       feedback
     }),
-    [items, error, isLoading, isRefreshing, terminatingPid, lastRefresh, feedback]
+    [items, error, isLoading, isRefreshing, lastRefresh, feedback]
   );
 
   return {
     ...state,
     refresh,
-    terminate,
     dismissFeedback
   };
 }

@@ -1,7 +1,7 @@
 ---
 title: feat: Add port occupancy management view
 type: feature
-status: active
+status: completed
 date: 2026-07-23
 ---
 
@@ -210,7 +210,7 @@ flowchart LR
 
 ## Implementation Units
 
-- [ ] **Unit 1: 在 Rust 原生层新增端口占用查询能力**
+- [x] **Unit 1: 在 Rust 原生层新增端口占用查询能力**
 
   - Goal: 让 `process-core` 能跨平台返回端口占用记录，并复用现有保护规则。
   - Requirements: R2, R5, R7
@@ -244,7 +244,7 @@ flowchart LR
     - sidecar 新命令能输出稳定 JSON
     - macOS / Linux / Windows 目标平台编译链路保持可构建
 
-- [ ] **Unit 2: 扩展 Electron bridge 与 IPC，暴露端口查询能力**
+- [x] **Unit 2: 扩展 Electron bridge 与 IPC，暴露端口查询能力**
 
   - Goal: 在 renderer 中新增 `listPorts` 调用能力，并让端口行可以复用结束动作。
   - Requirements: R4, R6, R8, R9
@@ -276,7 +276,7 @@ flowchart LR
     - Electron renderer 可无额外端口直接获取端口占用数据
     - 现有 `listProcesses` / `terminateProcess` 行为不回归
 
-- [ ] **Unit 3: 新增端口视图的前端状态、表格与 tab 集成**
+- [x] **Unit 3: 新增端口视图的前端状态、表格与 tab 集成**
 
   - Goal: 在现有桌面 UI 中接入 `端口` tab，并提供搜索、排序、空态、错误态与右键结束动作。
   - Requirements: R1, R2, R3, R4, R8, R9

@@ -1,7 +1,10 @@
-import type { ProcessItem } from "../types";
+type TerminateDialogItem = {
+  pid: number;
+  name: string;
+};
 
 type TerminateDialogProps = {
-  item: ProcessItem | null;
+  item: TerminateDialogItem | null;
   onCancel: () => void;
   onConfirm: () => void;
 };

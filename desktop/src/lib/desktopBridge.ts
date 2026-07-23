@@ -2,11 +2,18 @@ import type {
   ProcessItem,
   TerminateProcessResult
 } from "@/features/processes/types";
+import type { PortBindingItem } from "@/features/ports/types";
 import type { DesktopBootstrap } from "./desktopRuntime";
 
 export type DesktopContextMenuPosition = {
   x: number;
   y: number;
+};
+
+export type DesktopContextMenuItem = {
+  pid: number;
+  name: string;
+  canTerminate: boolean;
 };
 
 export type ProcessContextAction = {
@@ -17,9 +24,10 @@ export type ProcessContextAction = {
 export type DesktopBridge = {
   bootstrapState(): Promise<DesktopBootstrap>;
   listProcesses(): Promise<ProcessItem[]>;
+  listPorts(): Promise<PortBindingItem[]>;
   terminateProcess(pid: number): Promise<TerminateProcessResult>;
   showProcessContextMenu?(
-    item: ProcessItem,
+    item: DesktopContextMenuItem,
     position: DesktopContextMenuPosition
   ): Promise<void>;
   onProcessContextAction?(

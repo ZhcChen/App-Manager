@@ -25,6 +25,7 @@ describe("useProcesses", () => {
     window.appManagerDesktop = {
       bootstrapState: vi.fn(),
       listProcesses,
+      listPorts: vi.fn(),
       terminateProcess: vi.fn()
     };
 

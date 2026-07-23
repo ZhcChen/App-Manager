@@ -34,6 +34,19 @@ type ProcessItem = {
   canTerminate: boolean;
 };
 
+type PortBindingItem = {
+  id: string;
+  pid: number;
+  name: string;
+  path: string;
+  userName: string;
+  localAddress: string;
+  localPort: number;
+  protocol: "tcp" | "udp";
+  status: "running" | "protected";
+  canTerminate: boolean;
+};
+
 type TerminateProcessResult = {
   pid: number;
   name: string;
@@ -118,6 +131,10 @@ async function invokeSidecar<T>(
 
 export async function listProcessesFromSidecar() {
   return invokeSidecar<ProcessItem[]>(["list"]);
+}
+
+export async function listPortsFromSidecar() {
+  return invokeSidecar<PortBindingItem[]>(["list-ports"]);
 }
 
 export async function terminateProcessViaSidecar(pid: number) {

@@ -23,6 +23,7 @@ describe("processes api", () => {
     window.appManagerDesktop = {
       bootstrapState: vi.fn(),
       listProcesses: vi.fn().mockResolvedValue(expected),
+      listPorts: vi.fn(),
       terminateProcess: vi.fn()
     };
 
@@ -36,6 +37,7 @@ describe("processes api", () => {
     window.appManagerDesktop = {
       bootstrapState: vi.fn(),
       listProcesses: vi.fn(),
+      listPorts: vi.fn(),
       terminateProcess: vi.fn().mockRejectedValue({
         code: "protected",
         message: "Process 1 is protected."

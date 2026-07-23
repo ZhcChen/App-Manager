@@ -20,6 +20,19 @@ type ProcessItem = {
   canTerminate: boolean;
 };
 
+type PortBindingItem = {
+  id: string;
+  pid: number;
+  name: string;
+  path: string;
+  userName: string;
+  localAddress: string;
+  localPort: number;
+  protocol: "tcp" | "udp";
+  status: "running" | "protected";
+  canTerminate: boolean;
+};
+
 type TerminateProcessResult = {
   pid: number;
   name: string;
@@ -28,6 +41,12 @@ type TerminateProcessResult = {
 type ProcessContextMenuPosition = {
   x: number;
   y: number;
+};
+
+type ProcessContextMenuItem = {
+  pid: number;
+  name: string;
+  canTerminate: boolean;
 };
 
 type ProcessContextAction = {
@@ -60,6 +79,9 @@ contextBridge.exposeInMainWorld("appManagerDesktop", {
   listProcesses() {
     return invokeDesktopChannel<ProcessItem[]>(DESKTOP_CHANNELS.listProcesses);
   },
+  listPorts() {
+    return invokeDesktopChannel<PortBindingItem[]>(DESKTOP_CHANNELS.listPorts);
+  },
   terminateProcess(pid: number) {
     return invokeDesktopChannel<TerminateProcessResult>(
       DESKTOP_CHANNELS.terminateProcess,
@@ -67,7 +89,7 @@ contextBridge.exposeInMainWorld("appManagerDesktop", {
     );
   },
   showProcessContextMenu(
-    item: ProcessItem,
+    item: ProcessContextMenuItem,
     position: ProcessContextMenuPosition
   ) {
     return invokeDesktopChannel<null>(

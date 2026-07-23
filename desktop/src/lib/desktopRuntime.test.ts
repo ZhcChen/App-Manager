@@ -23,6 +23,7 @@ describe("desktopRuntime", () => {
         shell: "desktop"
       }),
       listProcesses: vi.fn(),
+      listPorts: vi.fn(),
       terminateProcess: vi.fn()
     };
 
@@ -38,6 +39,7 @@ describe("desktopRuntime", () => {
     window.appManagerDesktop = {
       bootstrapState: vi.fn().mockRejectedValue(new Error("bootstrap failed")),
       listProcesses: vi.fn(),
+      listPorts: vi.fn(),
       terminateProcess: vi.fn()
     };
 

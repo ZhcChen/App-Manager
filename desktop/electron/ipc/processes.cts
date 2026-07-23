@@ -2,16 +2,13 @@ import { BrowserWindow, Menu, ipcMain } from "electron";
 import { DESKTOP_CHANNELS } from "./channels.cjs";
 import { commandOk } from "./result.cjs";
 import {
+  listPortsFromSidecar,
   listProcessesFromSidecar,
   terminateProcessViaSidecar
 } from "../native/processSidecar.cjs";
 
 type ProcessContextMenuPayload = {
-  item: {
-    pid: number;
-    name: string;
-    canTerminate: boolean;
-  };
+  item: { pid: number; name: string; canTerminate: boolean };
   position: {
     x: number;
     y: number;
@@ -21,6 +18,10 @@ type ProcessContextMenuPayload = {
 export function registerProcessHandlers() {
   ipcMain.handle(DESKTOP_CHANNELS.listProcesses, async () => {
     return listProcessesFromSidecar();
+  });
+
+  ipcMain.handle(DESKTOP_CHANNELS.listPorts, async () => {
+    return listPortsFromSidecar();
   });
 
   ipcMain.handle(

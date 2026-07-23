@@ -2,13 +2,14 @@ mod protocol;
 
 use std::env;
 
-use process_core::{list_processes, terminate_process, ProcessError};
+use process_core::{list_ports, list_processes, terminate_process, ProcessError};
 use protocol::SidecarResponse;
 use serde::Serialize;
 
 fn main() {
     let output = match parse_command(env::args().skip(1).collect()) {
         Ok(Command::List) => serialize_result(list_processes()),
+        Ok(Command::ListPorts) => serialize_result(list_ports()),
         Ok(Command::Terminate(pid)) => serialize_result(terminate_process(pid)),
         Err(error) => serialize_response(SidecarResponse::<()>::error(error)),
     };
@@ -40,18 +41,20 @@ fn serialize_response<T: Serialize>(response: SidecarResponse<T>) -> String {
 #[derive(Debug, PartialEq, Eq)]
 enum Command {
     List,
+    ListPorts,
     Terminate(u32),
 }
 
 fn parse_command(args: Vec<String>) -> Result<Command, ProcessError> {
     match args.as_slice() {
         [command] if command == "list" => Ok(Command::List),
+        [command] if command == "list-ports" => Ok(Command::ListPorts),
         [command, pid] if command == "terminate" => pid
             .parse::<u32>()
             .map(Command::Terminate)
             .map_err(|_| ProcessError::operation_failed(format!("Invalid pid: {pid}"))),
         _ => Err(ProcessError::operation_failed(
-            "Usage: process-sidecar <list|terminate <pid>>",
+            "Usage: process-sidecar <list|list-ports|terminate <pid>>",
         )),
     }
 }
@@ -70,6 +73,14 @@ mod tests {
         assert_eq!(
             parse_command(vec!["terminate".into(), "42".into()]).unwrap(),
             Command::Terminate(42)
+        );
+    }
+
+    #[test]
+    fn parses_list_ports_command() {
+        assert_eq!(
+            parse_command(vec!["list-ports".into()]).unwrap(),
+            Command::ListPorts
         );
     }
 

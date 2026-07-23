@@ -8,6 +8,7 @@ import {
   within
 } from "@testing-library/react";
 import { mockProcesses } from "./features/processes/mockProcesses";
+import { mockPorts } from "./features/ports/mockPorts";
 import { App } from "./App";
 
 const AUTO_REFRESH_INTERVAL_STORAGE_KEY = "app-manager:auto-refresh-interval";
@@ -47,6 +48,7 @@ describe("App", () => {
     expect(refreshIntervalButton).toHaveTextContent("3s");
     expect(within(tabs).getByRole("button", { name: "CPU" })).toBeInTheDocument();
     expect(within(tabs).getByRole("button", { name: "内存" })).toBeInTheDocument();
+    expect(within(tabs).getByRole("button", { name: "端口" })).toBeInTheDocument();
   });
 
   it("stores the selected refresh interval", () => {
@@ -84,6 +86,22 @@ describe("App", () => {
     ).toBeInTheDocument();
   });
 
+  it("filters the mock port list by search query after switching to the port tab", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "端口" }));
+
+    fireEvent.change(screen.getByLabelText("搜索端口"), {
+      target: { value: "1430" }
+    });
+
+    const table = screen.getByRole("table", { name: "端口列表" });
+
+    expect(within(table).getByText("App Manager")).toBeInTheDocument();
+    expect(within(table).queryByText("Visual Studio Code")).not.toBeInTheDocument();
+    expect(screen.getByText("1 / 5")).toBeInTheDocument();
+  });
+
   it("falls back to the confirm dialog on right click when no desktop menu bridge exists", () => {
     render(<App />);
 
@@ -98,6 +116,35 @@ describe("App", () => {
     expect(dialog).toHaveTextContent("WeChat");
   });
 
+  it("keeps port loading failures scoped away from non-port tabs", async () => {
+    const listProcesses = vi.fn().mockResolvedValue(mockProcesses);
+    const listPorts = vi.fn().mockRejectedValue({
+      code: "operation_failed",
+      message: "port load failed"
+    });
+
+    window.appManagerDesktop = {
+      bootstrapState: vi.fn().mockResolvedValue({
+        appName: "App Manager",
+        runtime: "electron",
+        shell: "desktop"
+      }),
+      listProcesses,
+      listPorts,
+      terminateProcess: vi.fn()
+    };
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(listProcesses).toHaveBeenCalledTimes(1);
+      expect(listPorts).toHaveBeenCalledTimes(1);
+    });
+
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByText("port load failed")).not.toBeInTheDocument();
+  });
+
   it("opens the confirm dialog after the desktop context menu emits terminate action", async () => {
     const showProcessContextMenu = vi.fn().mockResolvedValue(undefined);
     const listProcesses = vi.fn().mockResolvedValue(mockProcesses);
@@ -110,6 +157,7 @@ describe("App", () => {
         shell: "desktop"
       }),
       listProcesses,
+      listPorts: vi.fn().mockResolvedValue(mockPorts),
       terminateProcess: vi.fn(),
       showProcessContextMenu,
       onProcessContextAction(listener) {
@@ -142,5 +190,109 @@ describe("App", () => {
 
     expect(dialog).toBeInTheDocument();
     expect(dialog).toHaveTextContent("WeChat");
+  });
+
+  it("refreshes the port list immediately after terminating a port owner", async () => {
+    let currentProcesses = [...mockProcesses];
+    let currentPorts = [...mockPorts];
+    const listProcesses = vi.fn().mockImplementation(async () => currentProcesses);
+    const listPorts = vi.fn().mockImplementation(async () => currentPorts);
+    const terminateProcess = vi.fn().mockImplementation(async (pid: number) => {
+      const target =
+        currentProcesses.find((item) => item.pid === pid) ??
+        currentPorts.find((item) => item.pid === pid);
+
+      currentProcesses = currentProcesses.filter((item) => item.pid !== pid);
+      currentPorts = currentPorts.filter((item) => item.pid !== pid);
+
+      return {
+        pid,
+        name: target?.name ?? `PID ${pid}`
+      };
+    });
+
+    window.appManagerDesktop = {
+      bootstrapState: vi.fn().mockResolvedValue({
+        appName: "App Manager",
+        runtime: "electron",
+        shell: "desktop"
+      }),
+      listProcesses,
+      listPorts,
+      terminateProcess
+    };
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(listProcesses).toHaveBeenCalledTimes(1);
+      expect(listPorts).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "端口" }));
+    fireEvent.contextMenu(screen.getByText("WeChat"), {
+      clientX: 52,
+      clientY: 36
+    });
+
+    const dialog = await screen.findByRole("dialog");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "结束进程" }));
+
+    await waitFor(() => {
+      expect(terminateProcess).toHaveBeenCalledWith(2831);
+      expect(listProcesses).toHaveBeenCalledTimes(2);
+      expect(listPorts).toHaveBeenCalledTimes(2);
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByText("WeChat")).not.toBeInTheDocument();
+    });
+  });
+
+  it("shows a port refresh error if the post-terminate refresh fails in the port view", async () => {
+    const listProcesses = vi.fn().mockResolvedValue(mockProcesses);
+    const listPorts = vi
+      .fn()
+      .mockResolvedValueOnce(mockPorts)
+      .mockRejectedValueOnce({
+        code: "operation_failed",
+        message: "port refresh failed"
+      });
+
+    window.appManagerDesktop = {
+      bootstrapState: vi.fn().mockResolvedValue({
+        appName: "App Manager",
+        runtime: "electron",
+        shell: "desktop"
+      }),
+      listProcesses,
+      listPorts,
+      terminateProcess: vi.fn().mockResolvedValue({
+        pid: 2831,
+        name: "WeChat"
+      })
+    };
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(listProcesses).toHaveBeenCalledTimes(1);
+      expect(listPorts).toHaveBeenCalledTimes(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "端口" }));
+    fireEvent.contextMenu(screen.getByText("WeChat"), {
+      clientX: 40,
+      clientY: 28
+    });
+
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "结束进程" }));
+
+    const alert = await screen.findByRole("alert");
+
+    expect(alert).toHaveTextContent("端口列表更新失败");
+    expect(alert).toHaveTextContent("port refresh failed");
   });
 });
