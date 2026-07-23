@@ -1,10 +1,12 @@
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.resolve(scriptDir, "..");
-const pnpmCommand = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+const require = createRequire(import.meta.url);
+const electronBuilderCli = require.resolve("electron-builder/out/cli/cli.js");
 const forwardedArgs = process.argv.slice(2);
 
 if (forwardedArgs[0] === "--") {
@@ -12,8 +14,7 @@ if (forwardedArgs[0] === "--") {
 }
 
 const builderArgs = [
-  "exec",
-  "electron-builder",
+  electronBuilderCli,
   "--config",
   "electron-builder.yml",
   "--publish",
@@ -21,7 +22,7 @@ const builderArgs = [
   ...forwardedArgs
 ];
 
-const child = spawn(pnpmCommand, builderArgs, {
+const child = spawn(process.execPath, builderArgs, {
   cwd: desktopRoot,
   stdio: "inherit"
 });
