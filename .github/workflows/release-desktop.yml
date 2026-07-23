@@ -1,0 +1,143 @@
+name: Release Desktop
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-desktop-${{ github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  validate-tag:
+    name: Validate release tag
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Verify tag matches desktop version
+        run: pnpm --dir desktop verify:release-tag
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+
+  build:
+    name: Build ${{ matrix.platform.name }}
+    needs: validate-tag
+    runs-on: ${{ matrix.platform.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: macOS
+            runner: macos-latest
+            dist_script: dist:mac
+            artifact_name: desktop-macos-assets
+          - name: Windows
+            runner: windows-latest
+            dist_script: dist:win
+            artifact_name: desktop-windows-assets
+          - name: Linux
+            runner: ubuntu-latest
+            dist_script: dist:linux
+            artifact_name: desktop-linux-assets
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build outputs
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run desktop tests
+        run: pnpm --dir desktop test
+
+      - name: Build release packages
+        run: pnpm --dir desktop ${{ matrix.platform.dist_script }}
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Collect release assets
+        run: node desktop/scripts/collect-release-assets.mjs desktop/release .artifacts/release-assets
+
+      - name: Upload release assets
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform.artifact_name }}
+          path: .artifacts/release-assets/*
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Download built assets
+        uses: actions/download-artifact@v5
+        with:
+          path: .artifacts/downloaded-assets
+
+      - name: Flatten release assets
+        run: node desktop/scripts/collect-release-assets.mjs .artifacts/downloaded-assets .artifacts/publish-assets
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if [[ "${RELEASE_TAG}" == *-* ]]; then
+            PRERELEASE_FLAG="--prerelease"
+          else
+            PRERELEASE_FLAG=""
+          fi
+
+          if gh release view "${RELEASE_TAG}" > /dev/null 2>&1; then
+            gh release upload "${RELEASE_TAG}" .artifacts/publish-assets/* --clobber
+          else
+            gh release create "${RELEASE_TAG}" .artifacts/publish-assets/* \
+              --title "App Manager ${RELEASE_TAG}" \
+              --generate-notes \
+              ${PRERELEASE_FLAG}
+          fi

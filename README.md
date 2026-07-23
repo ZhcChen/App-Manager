@@ -37,3 +37,24 @@ pnpm dev:desktop
 
 - `desktop/electron-builder.yml`
 - `mac.identity = "-"`
+
+## GitHub 自动发版
+
+当前仓库已规划为 **tag 驱动发版**：
+
+1. 先更新 `desktop/package.json` 中的版本号，例如 `0.1.0`
+2. 合并到 `main`
+3. 推送同版本 tag，例如 `v0.1.0`
+4. GitHub Actions 工作流 `release-desktop.yml` 会自动：
+   - 校验 tag 与 `desktop/package.json` 版本一致
+   - 在 macOS / Windows / Linux 三个平台打包
+   - 汇总产物
+   - 自动创建或更新对应的 GitHub Release
+
+当前默认发布形态：
+
+- macOS：ad-hoc 签名产物
+- Windows：未签名安装包
+- Linux：标准发行包产物
+
+后续如需正式签名 / notarization，可在此基础上继续补 GitHub Secrets 与签名配置。

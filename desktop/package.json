@@ -2,8 +2,15 @@
   "name": "@app-manager/desktop",
   "version": "0.1.0",
   "private": true,
+  "description": "Cross-platform desktop app manager built with Electron, Rust sidecar, and React.",
   "type": "module",
   "main": "dist-electron/main.cjs",
+  "author": "ZhcChen",
+  "homepage": "https://github.com/ZhcChen/App-Manager",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:ZhcChen/App-Manager.git"
+  },
   "scripts": {
     "dev": "pnpm build:sidecar:dev && concurrently -k -n renderer,electron-build,electron -c blue,yellow,green \"pnpm dev:renderer\" \"pnpm dev:electron:watch\" \"pnpm dev:electron:run\"",
     "dev:renderer": "vite --host 0.0.0.0 --port 1430",
@@ -14,7 +21,12 @@
     "build:electron": "tsc -p tsconfig.electron.json",
     "build:sidecar:dev": "cargo build -p process-sidecar",
     "build:sidecar:release": "cargo build -p process-sidecar --release && node ./scripts/prepare-sidecar.mjs",
+    "verify:release-tag": "node ./scripts/verify-release-version.mjs",
+    "collect:release-assets": "node ./scripts/collect-release-assets.mjs",
     "preview:mac": "pnpm build && pnpm build:sidecar:release && electron-builder --config electron-builder.yml --dir --mac && node ./scripts/open-macos-preview.mjs",
+    "dist:mac": "pnpm build && pnpm build:sidecar:release && electron-builder --config electron-builder.yml --mac --publish never",
+    "dist:win": "pnpm build && pnpm build:sidecar:release && electron-builder --config electron-builder.yml --win --publish never",
+    "dist:linux": "pnpm build && pnpm build:sidecar:release && electron-builder --config electron-builder.yml --linux --publish never",
     "dist": "pnpm build && pnpm build:sidecar:release && electron-builder --config electron-builder.yml",
     "preview": "vite preview --host 0.0.0.0 --port 1430",
     "test": "vitest run"

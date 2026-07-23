@@ -50,3 +50,28 @@ pnpm dev:desktop
 - 当前开发阶段先使用 **ad-hoc** 签名
 - Electron 打包配置位于 `desktop/electron-builder.yml`
 - 当前值为：`mac.identity = "-"`
+
+## GitHub Release 流程
+
+当前桌面端 GitHub 自动发版采用 **semver tag 驱动**：
+
+1. 更新 `desktop/package.json` 的版本号
+2. 将变更合并到 `main`
+3. 推送同版本 tag，例如 `v0.1.0`
+4. GitHub Actions `release-desktop.yml` 自动执行：
+   - 校验 tag 和 `desktop/package.json.version` 一致
+   - 在 macOS / Windows / Linux 上打包
+   - 汇总 release 资产
+   - 创建或更新对应 GitHub Release
+
+当前 CI 发布策略：
+
+- macOS：继续使用 ad-hoc 签名
+- Windows：默认未签名
+- Linux：发布标准安装产物
+
+如果后续要做正式分发，可继续叠加：
+
+- macOS Developer ID 签名
+- notarization
+- Windows 代码签名证书
