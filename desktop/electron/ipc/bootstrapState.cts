@@ -1,3 +1,5 @@
+import { app } from "electron";
+
 export type ElectronBootstrapState = {
   appName: string;
   runtime: "electron";
@@ -6,7 +8,7 @@ export type ElectronBootstrapState = {
 
 export function createBootstrapState(): ElectronBootstrapState {
   return {
-    appName: "App Manager",
+    appName: app.getName(),
     runtime: "electron",
     shell: "desktop"
   };

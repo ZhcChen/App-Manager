@@ -19,6 +19,7 @@ extraResources:
       - "**/*"
 
 mac:
+  icon: ../packages/brand/logo/app-manager-dock.icns
   category: public.app-category.utilities
   identity: "-"
   hardenedRuntime: true

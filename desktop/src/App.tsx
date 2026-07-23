@@ -4,7 +4,7 @@ import { ActivityIcon, PortIcon } from "./components/icons";
 import { RefreshIntervalSelect } from "./components/RefreshIntervalSelect";
 import { TransientToast } from "./components/TransientToast";
 import { getDesktopBridge } from "./lib/desktopBridge";
-import { loadDesktopBootstrap } from "./lib/desktopRuntime";
+import { loadDesktopBootstrap, type DesktopBootstrap } from "./lib/desktopRuntime";
 import { canTerminateProcess } from "./features/processes/guards";
 import { ProcessList } from "./features/processes/components/ProcessList";
 import { ProcessToolbar } from "./features/processes/components/ProcessToolbar";
@@ -79,6 +79,11 @@ function isProcessView(view: MonitorViewId): view is ProcessViewId {
 }
 
 export function App() {
+  const [bootstrapState, setBootstrapState] = useState<DesktopBootstrap>({
+    appName: "App Manager",
+    runtime: "browser",
+    shell: "desktop"
+  });
   const [activeView, setActiveView] = useState<MonitorViewId>("cpu");
   const [autoRefreshIntervalMs, setAutoRefreshIntervalMs] =
     useState<AutoRefreshIntervalMs>(getInitialAutoRefreshInterval);
@@ -113,7 +118,12 @@ export function App() {
   }, [autoRefreshIntervalMs]);
 
   useEffect(() => {
+    if (!getDesktopBridge()) {
+      return;
+    }
+
     void loadDesktopBootstrap().then((result) => {
+      setBootstrapState(result);
       if (result.runtime === "electron") {
         void Promise.all([
           processes.refresh("initial"),
@@ -356,10 +366,10 @@ export function App() {
             <img
               className="monitor-header__brand-mark"
               src={appManagerMarkUrl}
-              alt="App Manager 标志"
+              alt={`${bootstrapState.appName} 标志`}
             />
             <div className="monitor-header__copy">
-              <h1>App Manager</h1>
+              <h1>{bootstrapState.appName}</h1>
               <p>进程与端口监视器</p>
             </div>
           </div>

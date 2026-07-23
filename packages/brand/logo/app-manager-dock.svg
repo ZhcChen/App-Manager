@@ -1,0 +1,90 @@
+<svg
+  width="1024"
+  height="1024"
+  viewBox="0 0 1024 1024"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <defs>
+    <clipPath id="app-manager-dock-clip">
+      <rect x="64" y="64" width="896" height="896" rx="224" />
+    </clipPath>
+
+    <filter
+      id="app-manager-dock-glow"
+      x="80"
+      y="80"
+      width="864"
+      height="864"
+      filterUnits="userSpaceOnUse"
+      color-interpolation-filters="sRGB"
+    >
+      <feGaussianBlur in="SourceGraphic" stdDeviation="18" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect x="64" y="64" width="896" height="896" rx="224" fill="#27292D" />
+  <rect
+    x="64"
+    y="64"
+    width="896"
+    height="896"
+    rx="224"
+    stroke="#4B4E54"
+    stroke-width="12"
+  />
+
+  <g clip-path="url(#app-manager-dock-clip)">
+    <g opacity="0.9" stroke="#183328" stroke-width="12">
+      <path d="M224 128V896" />
+      <path d="M384 128V896" />
+      <path d="M544 128V896" />
+      <path d="M704 128V896" />
+      <path d="M864 128V896" />
+      <path d="M128 224H896" />
+      <path d="M128 384H896" />
+      <path d="M128 544H896" />
+      <path d="M128 704H896" />
+      <path d="M128 864H896" />
+    </g>
+
+    <rect
+      x="64"
+      y="64"
+      width="896"
+      height="896"
+      rx="224"
+      fill="#FFFFFF"
+      opacity="0.02"
+    />
+
+    <g filter="url(#app-manager-dock-glow)">
+      <path
+        d="M164 534H220C232 534 236 526 242 446L256 248C260 198 266 164 276 164C288 164 294 338 304 534C312 644 320 734 332 734C344 734 350 624 358 502C368 360 384 296 408 296C436 296 450 414 472 470C494 526 520 528 542 478C566 426 582 364 618 364C654 364 676 410 692 462C706 510 720 548 744 548C766 548 778 504 790 462C802 420 814 392 832 392C856 392 868 436 876 474C884 512 892 534 908 534"
+        stroke="#4DFFAE"
+        stroke-width="34"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        opacity="0.52"
+      />
+      <path
+        d="M164 534H220C232 534 236 526 242 446L256 248C260 198 266 164 276 164C288 164 294 338 304 534C312 644 320 734 332 734C344 734 350 624 358 502C368 360 384 296 408 296C436 296 450 414 472 470C494 526 520 528 542 478C566 426 582 364 618 364C654 364 676 410 692 462C706 510 720 548 744 548C766 548 778 504 790 462C802 420 814 392 832 392C856 392 868 436 876 474C884 512 892 534 908 534"
+        stroke="#7AFFC5"
+        stroke-width="18"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+      <path
+        d="M164 534H220C232 534 236 526 242 446L256 248C260 198 266 164 276 164C288 164 294 338 304 534C312 644 320 734 332 734C344 734 350 624 358 502C368 360 384 296 408 296C436 296 450 414 472 470C494 526 520 528 542 478C566 426 582 364 618 364C654 364 676 410 692 462C706 510 720 548 744 548C766 548 778 504 790 462C802 420 814 392 832 392C856 392 868 436 876 474C884 512 892 534 908 534"
+        stroke="#ECFFF5"
+        stroke-width="8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </g>
+  </g>
+</svg>

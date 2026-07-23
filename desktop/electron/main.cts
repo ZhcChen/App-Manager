@@ -3,12 +3,19 @@ import { app, BrowserWindow, nativeImage } from "electron";
 import { registerBootstrapHandlers } from "./ipc/bootstrap.cjs";
 import { registerProcessHandlers } from "./ipc/processes.cjs";
 
+const isDevRuntime = !app.isPackaged || process.env.APP_MANAGER_CHANNEL === "dev";
+const APP_DISPLAY_NAME = isDevRuntime ? "App Manager Dev" : "App Manager";
+const APP_USER_MODEL_ID = isDevRuntime
+  ? "com.zhcchen.app-manager.dev"
+  : "com.zhcchen.app-manager";
+
 function resolveRendererEntry() {
   return process.env.ELECTRON_RENDERER_URL ?? null;
 }
 
-function resolveBrandIconPath() {
-  return path.resolve(__dirname, "../../packages/brand/logo/app-manager-mark.png");
+function resolvePngBrandIconPath() {
+  const iconName = isDevRuntime ? "app-manager-dev-dock.png" : "app-manager-dock.png";
+  return path.resolve(__dirname, "../../packages/brand/logo", iconName);
 }
 
 function applyRuntimeBrandIcon() {
@@ -16,7 +23,7 @@ function applyRuntimeBrandIcon() {
     return;
   }
 
-  const icon = nativeImage.createFromPath(resolveBrandIconPath());
+  const icon = nativeImage.createFromPath(resolvePngBrandIconPath());
   if (icon.isEmpty()) {
     return;
   }
@@ -27,14 +34,14 @@ function applyRuntimeBrandIcon() {
 }
 
 function createMainWindow() {
-  const windowIcon = app.isPackaged ? undefined : resolveBrandIconPath();
+  const windowIcon = app.isPackaged ? undefined : resolvePngBrandIconPath();
   const window = new BrowserWindow({
     width: 1360,
     height: 920,
     minWidth: 1180,
     minHeight: 760,
     show: false,
-    title: "App Manager",
+    title: APP_DISPLAY_NAME,
     backgroundColor: "#ffffff",
     ...(windowIcon ? { icon: windowIcon } : {}),
     webPreferences: {
@@ -59,18 +66,44 @@ function createMainWindow() {
   return window;
 }
 
-app.whenReady().then(() => {
-  applyRuntimeBrandIcon();
-  registerBootstrapHandlers();
-  registerProcessHandlers();
-  createMainWindow();
+app.setName(APP_DISPLAY_NAME);
+app.setAppUserModelId(APP_USER_MODEL_ID);
 
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow();
+if (isDevRuntime) {
+  app.setPath("userData", path.join(app.getPath("appData"), APP_DISPLAY_NAME));
+}
+
+const acquiredSingleInstanceLock = app.requestSingleInstanceLock();
+
+if (!acquiredSingleInstanceLock) {
+  app.quit();
+} else {
+  app.on("second-instance", () => {
+    const existingWindow = BrowserWindow.getAllWindows()[0];
+    if (!existingWindow) {
+      return;
     }
+
+    if (existingWindow.isMinimized()) {
+      existingWindow.restore();
+    }
+
+    existingWindow.focus();
   });
-});
+
+  app.whenReady().then(() => {
+    applyRuntimeBrandIcon();
+    registerBootstrapHandlers();
+    registerProcessHandlers();
+    createMainWindow();
+
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createMainWindow();
+      }
+    });
+  });
+}
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {

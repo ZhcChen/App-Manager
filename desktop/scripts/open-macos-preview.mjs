@@ -1,16 +1,14 @@
 import { readdir } from "node:fs/promises";
 import path from "node:path";
-import { execFile, spawn } from "node:child_process";
+import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
+import { quitExistingPreviewApp } from "./macos-app-session.mjs";
 
-const execFileAsync = promisify(execFile);
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.resolve(scriptDir, "..");
 const releaseDir = path.join(desktopRoot, "release");
 const appDisplayName = "App Manager";
 const expectedAppName = "App Manager.app";
-const appProcessPattern = `${expectedAppName}/Contents/MacOS/${appDisplayName}`;
 
 async function findAppBundle(dir) {
   const entries = await readdir(dir, { withFileTypes: true });
@@ -34,50 +32,6 @@ async function findAppBundle(dir) {
   }
 
   return null;
-}
-
-function sleep(ms) {
-  return new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-}
-
-async function hasRunningPreviewInstance() {
-  try {
-    const { stdout } = await execFileAsync("pgrep", ["-f", appProcessPattern]);
-    return stdout.trim().length > 0;
-  } catch {
-    return false;
-  }
-}
-
-async function quitExistingPreviewApp() {
-  if (process.platform !== "darwin") {
-    return;
-  }
-
-  try {
-    await execFileAsync("osascript", [
-      "-e",
-      `tell application "${appDisplayName}" to quit`
-    ]);
-  } catch {
-    // Ignore "application isn't running" and keep going.
-  }
-
-  for (let index = 0; index < 20; index += 1) {
-    if (!(await hasRunningPreviewInstance())) {
-      return;
-    }
-
-    await sleep(250);
-  }
-
-  try {
-    await execFileAsync("pkill", ["-f", appProcessPattern]);
-  } catch {
-    // Best effort cleanup only.
-  }
 }
 
 const appBundlePath = await findAppBundle(releaseDir);

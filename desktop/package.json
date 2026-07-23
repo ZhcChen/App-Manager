@@ -16,7 +16,7 @@
     "dev": "pnpm build:sidecar:dev && concurrently -k -n renderer,electron-build,electron -c blue,yellow,green \"pnpm dev:renderer\" \"pnpm dev:electron:watch\" \"pnpm dev:electron:run\"",
     "dev:renderer": "vite --host 0.0.0.0 --port 1430",
     "dev:electron:watch": "tsc -p tsconfig.electron.json --watch --preserveWatchOutput",
-    "dev:electron:run": "wait-on tcp:1430 dist-electron/main.cjs dist-electron/preload.cjs && cross-env ELECTRON_RENDERER_URL=http://127.0.0.1:1430 electron dist-electron/main.cjs",
+    "dev:electron:run": "wait-on tcp:1430 dist-electron/main.cjs dist-electron/preload.cjs && cross-env ELECTRON_RENDERER_URL=http://127.0.0.1:1430 node ./scripts/run-electron-dev.mjs",
     "build": "pnpm build:renderer && pnpm build:electron",
     "build:renderer": "tsc --noEmit && vite build",
     "build:electron": "tsc -p tsconfig.electron.json",
