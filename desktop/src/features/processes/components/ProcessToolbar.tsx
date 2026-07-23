@@ -1,3 +1,5 @@
+import { ActivityIcon, RefreshIcon, SearchIcon, StopIcon } from "../../../components/icons";
+
 type ProcessToolbarProps = {
   activeViewLabel: string;
   query: string;
@@ -30,7 +32,12 @@ export function ProcessToolbar(props: ProcessToolbarProps) {
   return (
     <div className="monitor-toolbar">
       <div className="monitor-toolbar__meta">
-        <p className="toolbar-title">{activeViewLabel}</p>
+        <p className="toolbar-title">
+          <span className="toolbar-title__icon" aria-hidden="true">
+            <ActivityIcon />
+          </span>
+          <span>{activeViewLabel}</span>
+        </p>
         <p className="toolbar-subtitle">
           {query
             ? `显示 ${resultCount} / ${totalCount} 个进程`
@@ -41,6 +48,9 @@ export function ProcessToolbar(props: ProcessToolbarProps) {
       <label className="search-field monitor-toolbar__search">
         <span className="search-label">搜索</span>
         <div className="search-input-wrap">
+          <span className="search-input-icon" aria-hidden="true">
+            <SearchIcon />
+          </span>
           <input
             value={query}
             onChange={(event) => onQueryChange(event.target.value)}
@@ -66,7 +76,8 @@ export function ProcessToolbar(props: ProcessToolbarProps) {
           onClick={onRefresh}
           disabled={isRefreshing}
         >
-          {isRefreshing ? "刷新中…" : "刷新"}
+          <RefreshIcon />
+          <span>{isRefreshing ? "刷新中…" : "刷新"}</span>
         </button>
         <button
           type="button"
@@ -74,7 +85,8 @@ export function ProcessToolbar(props: ProcessToolbarProps) {
           onClick={onTerminateSelected}
           disabled={!selectedName || !canTerminateSelected}
         >
-          {selectedName ? `结束“${selectedName}”` : "结束进程"}
+          <StopIcon />
+          <span>{selectedName ? `结束“${selectedName}”` : "结束进程"}</span>
         </button>
       </div>
     </div>

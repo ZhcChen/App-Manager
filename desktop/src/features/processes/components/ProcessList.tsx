@@ -1,6 +1,7 @@
 import type { ProcessApiError, ProcessItem } from "../types";
 import type { ProcessColumn, ProcessSortKey, SortDirection } from "../view-config";
 import { formatMetricValue } from "../view-config";
+import { AppTileIcon } from "../../../components/icons";
 
 type ProcessListProps = {
   items: ProcessItem[];
@@ -117,7 +118,7 @@ export function ProcessList(props: ProcessListProps) {
                       <td key={column.key}>
                         <div className="process-cell__identity">
                           <div className="process-cell__icon" aria-hidden="true">
-                            {item.name.slice(0, 1)}
+                            <AppTileIcon />
                           </div>
                           <div className="process-cell__content">
                             <strong>{item.name}</strong>

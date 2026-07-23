@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import appManagerMarkUrl from "@app-manager/brand/logo/app-manager-mark.svg";
+import {
+  ActivityIcon,
+  AlertIcon,
+  AppTileIcon,
+  DesktopIcon,
+  RefreshIcon,
+  StopIcon,
+  SuccessIcon
+} from "./components/icons";
 import { loadDesktopBootstrap, type DesktopBootstrap } from "./lib/desktopRuntime";
 import { canTerminateProcess } from "./features/processes/guards";
 import { ProcessList } from "./features/processes/components/ProcessList";
@@ -250,9 +259,16 @@ export function App() {
 
         <section className="monitor-summary">
           <div className="monitor-summary__primary">
-            <p className="section-label">当前视图</p>
-            <h2>{PROCESS_VIEW_LABELS[activeView]}</h2>
-            <p>{PROCESS_VIEW_CONFIG[activeView].summary}</p>
+            <div className="monitor-summary__heading">
+              <span className="monitor-summary__icon" aria-hidden="true">
+                <ActivityIcon />
+              </span>
+              <div>
+                <p className="section-label">当前视图</p>
+                <h2>{PROCESS_VIEW_LABELS[activeView]}</h2>
+                <p>{PROCESS_VIEW_CONFIG[activeView].summary}</p>
+              </div>
+            </div>
           </div>
           <dl className="monitor-summary__stats">
             <div>
@@ -276,9 +292,14 @@ export function App() {
 
         {processes.error ? (
           <section className="feedback-banner feedback-banner--error" role="alert">
-            <div>
-              <p className="feedback-banner__title">进程列表更新失败</p>
-              <p className="feedback-banner__copy">{processes.error.message}</p>
+            <div className="feedback-banner__main">
+              <span className="feedback-banner__icon" aria-hidden="true">
+                <AlertIcon />
+              </span>
+              <div>
+                <p className="feedback-banner__title">进程列表更新失败</p>
+                <p className="feedback-banner__copy">{processes.error.message}</p>
+              </div>
             </div>
             <button
               type="button"
@@ -292,9 +313,14 @@ export function App() {
           </section>
         ) : processes.notice ? (
           <section className="feedback-banner feedback-banner--success" role="status">
-            <div>
-              <p className="feedback-banner__title">最近动作</p>
-              <p className="feedback-banner__copy">{processes.notice}</p>
+            <div className="feedback-banner__main">
+              <span className="feedback-banner__icon" aria-hidden="true">
+                <SuccessIcon />
+              </span>
+              <div>
+                <p className="feedback-banner__title">最近动作</p>
+                <p className="feedback-banner__copy">{processes.notice}</p>
+              </div>
             </div>
           </section>
         ) : null}
@@ -326,10 +352,17 @@ export function App() {
 
         <footer className="detail-panel">
           <div className="detail-panel__selection">
-            <p className="section-label">选中进程</p>
+            <div className="detail-panel__heading">
+              <span className="detail-panel__heading-icon" aria-hidden="true">
+                <AppTileIcon />
+              </span>
+              <div>
+                <p className="section-label">选中进程</p>
+                <h3>{selectedItem ? selectedItem.name : "尚未选择"}</h3>
+              </div>
+            </div>
             {selectedItem ? (
               <>
-                <h3>{selectedItem.name}</h3>
                 <p className="detail-path">{selectedItem.path || "—"}</p>
                 <dl className="detail-grid">
                   <div>
@@ -373,11 +406,38 @@ export function App() {
 
           <div className="detail-panel__actions">
             <div className="detail-card">
-              <p className="section-label">会话状态</p>
-              <h3>{bootstrap.runtime === "electron" ? "桌面实时连接" : "浏览器预览"}</h3>
-              <p>上次刷新 {processes.lastRefresh}</p>
-              <p>自动刷新间隔 {formatRefreshCadence()}</p>
-              <p>Shell: {bootstrap.shell}</p>
+              <div className="detail-card__header">
+                <p className="section-label">会话状态</p>
+                <span className="detail-card__status">
+                  <DesktopIcon />
+                  <span>
+                    {bootstrap.runtime === "electron" ? "桌面实时连接" : "浏览器预览"}
+                  </span>
+                </span>
+              </div>
+              <ul className="detail-meta-list">
+                <li>
+                  <span className="detail-meta-list__icon" aria-hidden="true">
+                    <RefreshIcon />
+                  </span>
+                  <span>上次刷新</span>
+                  <strong>{processes.lastRefresh}</strong>
+                </li>
+                <li>
+                  <span className="detail-meta-list__icon" aria-hidden="true">
+                    <ActivityIcon />
+                  </span>
+                  <span>自动刷新</span>
+                  <strong>{formatRefreshCadence()}</strong>
+                </li>
+                <li>
+                  <span className="detail-meta-list__icon" aria-hidden="true">
+                    <DesktopIcon />
+                  </span>
+                  <span>Shell</span>
+                  <strong>{bootstrap.shell}</strong>
+                </li>
+              </ul>
             </div>
 
             <button
@@ -390,7 +450,8 @@ export function App() {
                 }
               }}
             >
-              {selectedItem ? `结束 ${selectedItem.name}` : "结束进程"}
+              <StopIcon />
+              <span>{selectedItem ? `结束 ${selectedItem.name}` : "结束进程"}</span>
             </button>
           </div>
         </footer>
