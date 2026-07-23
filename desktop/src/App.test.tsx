@@ -36,12 +36,15 @@ describe("App", () => {
   it("renders the shell header", () => {
     render(<App />);
     const tabs = screen.getByRole("navigation", { name: "监视视图" });
+    const refreshIntervalButton = screen.getByRole("button", {
+      name: "自动刷新间隔"
+    });
 
     expect(screen.getByAltText("App Manager 标志")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { level: 1, name: "App Manager" })
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("自动刷新间隔")).toHaveDisplayValue("3s");
+    expect(refreshIntervalButton).toHaveTextContent("3s");
     expect(within(tabs).getByRole("button", { name: "CPU" })).toBeInTheDocument();
     expect(within(tabs).getByRole("button", { name: "内存" })).toBeInTheDocument();
   });
@@ -49,11 +52,10 @@ describe("App", () => {
   it("stores the selected refresh interval", () => {
     render(<App />);
 
-    fireEvent.change(screen.getByLabelText("自动刷新间隔"), {
-      target: { value: "10000" }
-    });
+    fireEvent.click(screen.getByRole("button", { name: "自动刷新间隔" }));
+    fireEvent.click(screen.getByRole("option", { name: "10s" }));
 
-    expect(screen.getByLabelText("自动刷新间隔")).toHaveDisplayValue("10s");
+    expect(screen.getByRole("button", { name: "自动刷新间隔" })).toHaveTextContent("10s");
     expect(window.localStorage.getItem(AUTO_REFRESH_INTERVAL_STORAGE_KEY)).toBe("10000");
   });
 

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import appManagerMarkUrl from "@app-manager/brand/logo/app-manager-mark.svg";
+import { RefreshIntervalSelect } from "./components/RefreshIntervalSelect";
 import { TransientToast } from "./components/TransientToast";
 import { getDesktopBridge } from "./lib/desktopBridge";
 import { loadDesktopBootstrap } from "./lib/desktopRuntime";
@@ -219,26 +220,16 @@ export function App() {
           </nav>
 
           <div className="monitor-header__actions">
-            <label className="refresh-interval-control">
-              <span className="refresh-interval-control__field">
-                <select
-                  aria-label="自动刷新间隔"
-                  value={String(autoRefreshIntervalMs)}
-                  onChange={(event) => {
-                    const nextValue = Number(event.target.value);
-                    if (isAutoRefreshIntervalMs(nextValue)) {
-                      setAutoRefreshIntervalMs(nextValue);
-                    }
-                  }}
-                >
-                  {AUTO_REFRESH_INTERVAL_OPTIONS_MS.map((intervalMs) => (
-                    <option key={intervalMs} value={String(intervalMs)}>
-                      {formatRefreshCadence(intervalMs)}
-                    </option>
-                  ))}
-                </select>
-              </span>
-            </label>
+            <RefreshIntervalSelect
+              options={AUTO_REFRESH_INTERVAL_OPTIONS_MS}
+              value={autoRefreshIntervalMs}
+              formatLabel={formatRefreshCadence}
+              onChange={(nextValue) => {
+                if (isAutoRefreshIntervalMs(nextValue)) {
+                  setAutoRefreshIntervalMs(nextValue);
+                }
+              }}
+            />
           </div>
         </header>
 
