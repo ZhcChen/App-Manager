@@ -24,6 +24,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 20
+          package-manager-cache: false
 
       - name: Install pnpm
         run: npm install --global pnpm@10.33.0
@@ -86,6 +87,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 20
+          package-manager-cache: false
 
       - name: Install pnpm
         run: npm install --global pnpm@10.33.0
@@ -131,6 +133,7 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: 20
+          package-manager-cache: false
 
       - name: Download built assets
         uses: actions/download-artifact@v5
