@@ -1,4 +1,4 @@
-import { copyFile, mkdir, readdir, rm } from "node:fs/promises";
+import { copyFile, mkdir, readFile, readdir, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -6,15 +6,14 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const desktopRoot = path.resolve(scriptDir, "..");
 const defaultSourceDir = path.join(desktopRoot, "release");
 const defaultTargetDir = path.resolve(desktopRoot, "..", ".artifacts", "release-assets");
+const packageJsonPath = path.join(desktopRoot, "package.json");
+const packageJson = JSON.parse(await readFile(packageJsonPath, "utf8"));
+const currentVersion = String(packageJson.version);
 const supportedExtensions = new Set([
   ".appimage",
-  ".blockmap",
   ".deb",
   ".dmg",
   ".exe",
-  ".yml",
-  ".yaml",
-  ".zip"
 ]);
 
 async function collectAssetFiles(rootDir) {
@@ -38,9 +37,15 @@ async function collectAssetFiles(rootDir) {
       continue;
     }
 
+    const normalizedName = entry.name.toLowerCase();
+    if (!normalizedName.includes(`-${currentVersion.toLowerCase()}-`)) {
+      continue;
+    }
+
     if (
-      (extension === ".yml" || extension === ".yaml") &&
-      !entry.name.toLowerCase().startsWith("latest")
+      !normalizedName.includes("-mac-") &&
+      !normalizedName.includes("-win-") &&
+      !normalizedName.includes("-linux-")
     ) {
       continue;
     }

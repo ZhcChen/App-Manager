@@ -2,7 +2,7 @@ appId: com.zhcchen.app-manager
 productName: App Manager
 asar: true
 icon: ../packages/brand/logo/app-manager-mark
-artifactName: ${productName}-${version}-${os}-${arch}.${ext}
+artifactName: App-Manager-${version}-${os}-${arch}.${ext}
 
 directories:
   output: release

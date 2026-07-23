@@ -104,6 +104,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -118,9 +120,16 @@ jobs:
       - name: Flatten release assets
         run: node desktop/scripts/collect-release-assets.mjs .artifacts/downloaded-assets .artifacts/publish-assets
 
+      - name: Generate release notes
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: node desktop/scripts/generate-release-notes.mjs "${RELEASE_TAG}" "${GITHUB_REPOSITORY}" .artifacts/publish-assets .artifacts/release-notes.md
+
       - name: Create or update GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           if [[ "${RELEASE_TAG}" == *-* ]]; then
@@ -130,10 +139,20 @@ jobs:
           fi
 
           if gh release view "${RELEASE_TAG}" > /dev/null 2>&1; then
+            mapfile -t EXISTING_ASSETS < <(gh release view "${RELEASE_TAG}" --json assets --jq '.assets[].name')
+
+            for ASSET_NAME in "${EXISTING_ASSETS[@]}"; do
+              gh release delete-asset "${RELEASE_TAG}" "${ASSET_NAME}" --yes
+            done
+
             gh release upload "${RELEASE_TAG}" .artifacts/publish-assets/* --clobber
+            gh release edit "${RELEASE_TAG}" \
+              --title "App Manager ${RELEASE_TAG}" \
+              --notes-file .artifacts/release-notes.md \
+              ${PRERELEASE_FLAG}
           else
             gh release create "${RELEASE_TAG}" .artifacts/publish-assets/* \
               --title "App Manager ${RELEASE_TAG}" \
-              --generate-notes \
+              --notes-file .artifacts/release-notes.md \
               ${PRERELEASE_FLAG}
           fi
