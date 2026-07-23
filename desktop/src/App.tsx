@@ -1,21 +1,12 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import appManagerMarkUrl from "@app-manager/brand/logo/app-manager-mark.svg";
-import {
-  ActivityIcon,
-  AppTileIcon,
-  DesktopIcon,
-  RefreshIcon,
-  StopIcon
-} from "./components/icons";
 import { TransientToast } from "./components/TransientToast";
 import { getDesktopBridge } from "./lib/desktopBridge";
-import { loadDesktopBootstrap, type DesktopBootstrap } from "./lib/desktopRuntime";
+import { loadDesktopBootstrap } from "./lib/desktopRuntime";
 import { canTerminateProcess } from "./features/processes/guards";
 import { ProcessList } from "./features/processes/components/ProcessList";
 import { ProcessToolbar } from "./features/processes/components/ProcessToolbar";
 import { TerminateDialog } from "./features/processes/components/TerminateDialog";
-import { formatBytes, formatDuration, formatStartedAt } from "./features/processes/formatters";
-import { formatRefreshCadence } from "./features/processes/refresh-policy";
 import type { ProcessItem } from "./features/processes/types";
 import { useProcesses } from "./features/processes/useProcesses";
 import {
@@ -27,14 +18,7 @@ import {
   getMetricValue
 } from "./features/processes/view-config";
 
-const INITIAL_BOOTSTRAP: DesktopBootstrap = {
-  appName: "App Manager",
-  runtime: "browser",
-  shell: "desktop"
-};
-
 export function App() {
-  const [bootstrap, setBootstrap] = useState(INITIAL_BOOTSTRAP);
   const [activeView, setActiveView] = useState<ProcessViewId>("cpu");
   const [query, setQuery] = useState("");
   const [selectedPid, setSelectedPid] = useState<number | null>(null);
@@ -50,7 +34,6 @@ export function App() {
   useEffect(() => {
     void loadDesktopBootstrap().then((result) => {
       if (result.runtime === "electron") {
-        setBootstrap(result);
         void processes.refresh("initial");
       }
     });
@@ -124,10 +107,6 @@ export function App() {
     if (!filteredItems.some((item) => item.pid === selectedPid)) {
       setSelectedPid(filteredItems[0].pid);
     }
-  }, [filteredItems, selectedPid]);
-
-  const selectedItem = useMemo(() => {
-    return filteredItems.find((item) => item.pid === selectedPid) ?? null;
   }, [filteredItems, selectedPid]);
 
   useEffect(() => {
@@ -246,112 +225,6 @@ export function App() {
             void processes.refresh();
           }}
         />
-
-        <footer className="detail-panel">
-          <div className="detail-panel__selection">
-            <div className="detail-panel__heading">
-              <span className="detail-panel__heading-icon" aria-hidden="true">
-                <AppTileIcon />
-              </span>
-              <div>
-                <p className="section-label">选中进程</p>
-                <h3>{selectedItem ? selectedItem.name : "尚未选择"}</h3>
-              </div>
-            </div>
-            {selectedItem ? (
-              <>
-                <p className="detail-path">{selectedItem.path || "—"}</p>
-                <dl className="detail-grid">
-                  <div>
-                    <dt>PID</dt>
-                    <dd>{selectedItem.pid}</dd>
-                  </div>
-                  <div>
-                    <dt>用户</dt>
-                    <dd>{selectedItem.userName}</dd>
-                  </div>
-                  <div>
-                    <dt>种类</dt>
-                    <dd>{selectedItem.kindLabel}</dd>
-                  </div>
-                  <div>
-                    <dt>启动时间</dt>
-                    <dd>{formatStartedAt(selectedItem.startTimeSeconds)}</dd>
-                  </div>
-                  <div>
-                    <dt>运行时间</dt>
-                    <dd>{formatDuration(selectedItem.runTimeSeconds)}</dd>
-                  </div>
-                  <div>
-                    <dt>常驻内存</dt>
-                    <dd>{formatBytes(selectedItem.memoryBytes)}</dd>
-                  </div>
-                  <div>
-                    <dt>读取总量</dt>
-                    <dd>{formatBytes(selectedItem.diskReadBytes)}</dd>
-                  </div>
-                  <div>
-                    <dt>写入总量</dt>
-                    <dd>{formatBytes(selectedItem.diskWrittenBytes)}</dd>
-                  </div>
-                </dl>
-              </>
-            ) : (
-              <p className="detail-empty">选择一个进程以查看详情。</p>
-            )}
-          </div>
-
-          <div className="detail-panel__actions">
-            <div className="detail-card">
-              <div className="detail-card__header">
-                <p className="section-label">会话状态</p>
-                <span className="detail-card__status">
-                  <DesktopIcon />
-                  <span>
-                    {bootstrap.runtime === "electron" ? "桌面实时连接" : "浏览器预览"}
-                  </span>
-                </span>
-              </div>
-              <ul className="detail-meta-list">
-                <li>
-                  <span className="detail-meta-list__icon" aria-hidden="true">
-                    <RefreshIcon />
-                  </span>
-                  <span>上次刷新</span>
-                  <strong>{processes.lastRefresh}</strong>
-                </li>
-                <li>
-                  <span className="detail-meta-list__icon" aria-hidden="true">
-                    <ActivityIcon />
-                  </span>
-                  <span>自动刷新</span>
-                  <strong>{formatRefreshCadence()}</strong>
-                </li>
-                <li>
-                  <span className="detail-meta-list__icon" aria-hidden="true">
-                    <DesktopIcon />
-                  </span>
-                  <span>Shell</span>
-                  <strong>{bootstrap.shell}</strong>
-                </li>
-              </ul>
-            </div>
-
-            <button
-              type="button"
-              className="danger-button detail-panel__terminate"
-              disabled={!selectedItem || !canTerminateProcess(selectedItem)}
-              onClick={() => {
-                if (selectedItem) {
-                  setTarget(selectedItem);
-                }
-              }}
-            >
-              <StopIcon />
-              <span>{selectedItem ? `结束 ${selectedItem.name}` : "结束进程"}</span>
-            </button>
-          </div>
-        </footer>
       </section>
 
       <TerminateDialog
