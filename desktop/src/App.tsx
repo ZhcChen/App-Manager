@@ -201,7 +201,6 @@ export function App() {
 
         <ProcessToolbar
           activeViewLabel={PROCESS_VIEW_LABELS[activeView]}
-          activeViewSummary={PROCESS_VIEW_CONFIG[activeView].summary}
           query={query}
           resultCount={filteredItems.length}
           totalCount={processes.items.length}

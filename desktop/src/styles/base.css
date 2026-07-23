@@ -231,9 +231,9 @@ button:disabled {
 
 .monitor-toolbar {
   display: grid;
-  grid-template-columns: minmax(300px, 1fr) minmax(420px, 680px);
+  grid-template-columns: minmax(260px, 1fr) minmax(420px, 720px);
   align-items: center;
-  gap: 20px;
+  gap: 18px;
   padding: 14px 16px;
   border-radius: 16px;
   background: #ffffff;
@@ -294,12 +294,6 @@ button:disabled {
   line-height: 1.15;
 }
 
-.monitor-toolbar__overview-copy p {
-  margin: 4px 0 0;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-xs);
-}
-
 .monitor-toolbar__count {
   display: inline-flex;
   align-items: center;
@@ -327,21 +321,18 @@ button:disabled {
   height: 15px;
 }
 
-.monitor-toolbar__search {
-  min-width: 0;
-}
-
 .monitor-toolbar__controls {
-  display: grid;
-  gap: 8px;
   min-width: 0;
 }
 
-.monitor-toolbar__search-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
-  gap: 12px;
+.monitor-toolbar__search-input {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding-right: 6px;
+  border-radius: 14px;
+  background: #f7f9fc;
+  box-shadow: inset 0 0 0 1px rgba(147, 164, 191, 0.22);
 }
 
 .search-field {
@@ -371,22 +362,25 @@ button:disabled {
   pointer-events: none;
 }
 
+.monitor-toolbar__search-input input,
 .search-field input {
+  flex: 1 1 auto;
   width: 100%;
+  min-width: 0;
   min-height: 36px;
-  padding: 0 74px 0 34px;
+  padding: 0 110px 0 34px;
   border: 0;
-  border-radius: 10px;
-  background: #f7f9fc;
-  box-shadow: inset 0 0 0 1px rgba(147, 164, 191, 0.22);
+  background: transparent;
   color: var(--color-text-primary);
   font-size: var(--font-size-xs);
 }
 
+.monitor-toolbar__search-input input::placeholder,
 .search-field input::placeholder {
   color: var(--color-text-muted);
 }
 
+.monitor-toolbar__search-input input:focus,
 .search-field input:focus,
 .secondary-button:focus,
 .danger-button:focus,
@@ -399,7 +393,7 @@ button:disabled {
 .search-clear-button {
   position: absolute;
   top: 50%;
-  right: 8px;
+  right: 48px;
   transform: translateY(-50%);
   min-height: 24px;
   padding: 0 8px;
@@ -487,7 +481,13 @@ button:disabled {
 }
 
 .monitor-toolbar__refresh {
-  min-width: 100px;
+  flex: 0 0 auto;
+  min-width: 36px;
+  width: 36px;
+  min-height: 36px;
+  padding: 0;
+  border-radius: 11px;
+  box-shadow: none;
 }
 
 .feedback-banner {
@@ -901,16 +901,6 @@ button:disabled {
 
   .view-tabs {
     justify-self: start;
-  }
-
-  .monitor-toolbar__search-row {
-    grid-template-columns: 1fr;
-    align-items: stretch;
-  }
-
-  .monitor-toolbar__actions,
-  .monitor-toolbar__hint {
-    text-align: left;
   }
 
   .detail-panel {

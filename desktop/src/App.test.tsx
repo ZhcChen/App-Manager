@@ -37,11 +37,7 @@ describe("App", () => {
 
     expect(within(table).getByText("WeChat")).toBeInTheDocument();
     expect(within(table).queryByText("Google Chrome")).not.toBeInTheDocument();
-    expect(
-      screen.getByText(/已筛选 1 \/ 5 个进程/, {
-        selector: ".monitor-toolbar__overview-copy p"
-      })
-    ).toBeInTheDocument();
+    expect(screen.getByText("1 / 5")).toBeInTheDocument();
   });
 
   it("shows a query-specific empty state when nothing matches", () => {
