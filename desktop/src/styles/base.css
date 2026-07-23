@@ -231,7 +231,7 @@ button:disabled {
 
 .monitor-toolbar {
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(420px, 720px);
+  grid-template-columns: minmax(220px, 1fr) minmax(420px, 720px) minmax(220px, 1fr);
   align-items: center;
   gap: 18px;
   padding: 14px 16px;
@@ -252,6 +252,7 @@ button:disabled {
 }
 
 .monitor-toolbar__overview {
+  justify-self: start;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -322,6 +323,8 @@ button:disabled {
 }
 
 .monitor-toolbar__controls {
+  grid-column: 2;
+  width: 100%;
   min-width: 0;
 }
 
