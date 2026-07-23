@@ -9,6 +9,7 @@ import {
   StopIcon,
   SuccessIcon
 } from "./components/icons";
+import { getDesktopBridge } from "./lib/desktopBridge";
 import { loadDesktopBootstrap, type DesktopBootstrap } from "./lib/desktopRuntime";
 import { canTerminateProcess } from "./features/processes/guards";
 import { ProcessList } from "./features/processes/components/ProcessList";
@@ -142,6 +143,27 @@ export function App() {
     return filteredItems.reduce((sum, item) => sum + item.memoryBytes, 0);
   }, [filteredItems]);
 
+  useEffect(() => {
+    const bridge = getDesktopBridge();
+    if (!bridge?.onProcessContextAction) {
+      return undefined;
+    }
+
+    return bridge.onProcessContextAction((action) => {
+      if (action.action !== "terminate") {
+        return;
+      }
+
+      const item = processes.items.find((entry) => entry.pid === action.pid);
+      if (!item) {
+        return;
+      }
+
+      setSelectedPid(item.pid);
+      setTarget(item);
+    });
+  }, [processes.items]);
+
   const viewTabsStyle = useMemo(() => {
     return {
       "--tab-count": String(PROCESS_VIEW_ORDER.length),
@@ -191,56 +213,20 @@ export function App() {
 
         <ProcessToolbar
           activeViewLabel={PROCESS_VIEW_LABELS[activeView]}
+          activeViewSummary={PROCESS_VIEW_CONFIG[activeView].summary}
           query={query}
           resultCount={filteredItems.length}
           totalCount={processes.items.length}
+          totalCpuUsage={totalCpuUsage}
+          totalMemoryBytes={totalMemoryBytes}
+          protectedCount={protectedCount}
           isRefreshing={processes.isRefreshing}
-          selectedName={selectedItem?.name ?? null}
-          canTerminateSelected={selectedItem ? canTerminateProcess(selectedItem) : false}
           onQueryChange={setQuery}
           onClearQuery={() => setQuery("")}
           onRefresh={() => {
             void processes.refresh();
           }}
-          onTerminateSelected={() => {
-            if (selectedItem) {
-              setTarget(selectedItem);
-            }
-          }}
         />
-
-        <section className="monitor-summary">
-          <div className="monitor-summary__primary">
-            <div className="monitor-summary__heading">
-              <span className="monitor-summary__icon" aria-hidden="true">
-                <ActivityIcon />
-              </span>
-              <div>
-                <p className="section-label">当前视图</p>
-                <h2>{PROCESS_VIEW_LABELS[activeView]}</h2>
-                <p>{PROCESS_VIEW_CONFIG[activeView].summary}</p>
-              </div>
-            </div>
-          </div>
-          <dl className="monitor-summary__stats">
-            <div>
-              <dt>进程</dt>
-              <dd>{filteredItems.length}</dd>
-            </div>
-            <div>
-              <dt>总 CPU</dt>
-              <dd>{totalCpuUsage.toFixed(1)}%</dd>
-            </div>
-            <div>
-              <dt>总内存</dt>
-              <dd>{formatBytes(totalMemoryBytes)}</dd>
-            </div>
-            <div>
-              <dt>受保护</dt>
-              <dd>{protectedCount}</dd>
-            </div>
-          </dl>
-        </section>
 
         {processes.error ? (
           <section className="feedback-banner feedback-banner--error" role="alert">
@@ -288,6 +274,21 @@ export function App() {
           sortDirection={sortDirection}
           terminatingPid={processes.terminatingPid}
           onSelect={(item) => setSelectedPid(item.pid)}
+          onOpenContextMenu={(item, position) => {
+            const bridge = getDesktopBridge();
+            if (bridge?.showProcessContextMenu) {
+              void bridge.showProcessContextMenu(item, position).catch(() => {
+                if (canTerminateProcess(item)) {
+                  setTarget(item);
+                }
+              });
+              return;
+            }
+
+            if (canTerminateProcess(item)) {
+              setTarget(item);
+            }
+          }}
           onSortChange={(key) => {
             if (key === sortKey) {
               setSortDirection((current) => (current === "asc" ? "desc" : "asc"));

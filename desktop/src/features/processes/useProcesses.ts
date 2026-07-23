@@ -43,7 +43,7 @@ export function useProcesses() {
         setError(null);
         setLastRefresh(formatRefreshTime());
         if (mode === "manual") {
-          setNotice(`Refreshed ${next.length} processes`);
+          setNotice(`已刷新 ${next.length} 个进程`);
         }
       } catch (cause) {
         setError(toProcessApiError(cause));
@@ -81,7 +81,7 @@ export function useProcesses() {
       try {
         const result = await terminateProcess(item.pid);
         setError(null);
-        setNotice(`Ended process ${result.name} (${result.pid})`);
+        setNotice(`已结束 ${result.name}（${result.pid}）`);
         await refresh("background");
         return true;
       } catch (cause) {

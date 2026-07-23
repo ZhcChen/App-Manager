@@ -52,6 +52,7 @@ describe("ProcessList", () => {
         sortDirection="desc"
         terminatingPid={null}
         onSelect={vi.fn()}
+        onOpenContextMenu={vi.fn()}
         onSortChange={vi.fn()}
         onRetry={vi.fn()}
       />
@@ -78,6 +79,7 @@ describe("ProcessList", () => {
         sortDirection="desc"
         terminatingPid={null}
         onSelect={onSelect}
+        onOpenContextMenu={vi.fn()}
         onSortChange={vi.fn()}
         onRetry={vi.fn()}
       />
@@ -87,6 +89,40 @@ describe("ProcessList", () => {
 
     expect(onSelect).toHaveBeenCalledWith(items[1]);
     expect(screen.getByText("12.3%")).toBeInTheDocument();
+  });
+
+  it("opens the row context menu with the clicked process position", () => {
+    const onSelect = vi.fn();
+    const onOpenContextMenu = vi.fn();
+
+    render(
+      <ProcessList
+        items={items}
+        columns={PROCESS_VIEW_CONFIG.cpu.columns}
+        error={null}
+        isLoading={false}
+        query=""
+        selectedPid={1824}
+        sortKey="cpuUsagePercent"
+        sortDirection="desc"
+        terminatingPid={null}
+        onSelect={onSelect}
+        onOpenContextMenu={onOpenContextMenu}
+        onSortChange={vi.fn()}
+        onRetry={vi.fn()}
+      />
+    );
+
+    fireEvent.contextMenu(screen.getByText("Google Chrome"), {
+      clientX: 72,
+      clientY: 44
+    });
+
+    expect(onSelect).toHaveBeenCalledWith(items[0]);
+    expect(onOpenContextMenu).toHaveBeenCalledWith(items[0], {
+      x: 72,
+      y: 44
+    });
   });
 
   it("renders query-specific empty copy", () => {
@@ -102,6 +138,7 @@ describe("ProcessList", () => {
         sortDirection="desc"
         terminatingPid={null}
         onSelect={vi.fn()}
+        onOpenContextMenu={vi.fn()}
         onSortChange={vi.fn()}
         onRetry={vi.fn()}
       />

@@ -1,7 +1,20 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within
+} from "@testing-library/react";
+import { mockProcesses } from "./features/processes/mockProcesses";
 import { App } from "./App";
 
 describe("App", () => {
+  beforeEach(() => {
+    delete window.appManagerDesktop;
+  });
+
   it("renders the shell header", () => {
     render(<App />);
     const tabs = screen.getByRole("navigation", { name: "监视视图" });
@@ -24,7 +37,11 @@ describe("App", () => {
 
     expect(within(table).getByText("WeChat")).toBeInTheDocument();
     expect(within(table).queryByText("Google Chrome")).not.toBeInTheDocument();
-    expect(screen.getByText("显示 1 / 5 个进程")).toBeInTheDocument();
+    expect(
+      screen.getByText(/显示 1 \/ 5 个进程/, {
+        selector: ".monitor-toolbar__overview-copy p:not(.section-label)"
+      })
+    ).toBeInTheDocument();
   });
 
   it("shows a query-specific empty state when nothing matches", () => {
@@ -37,5 +54,65 @@ describe("App", () => {
     expect(
       screen.getByRole("heading", { level: 3, name: "没有匹配的进程" })
     ).toBeInTheDocument();
+  });
+
+  it("falls back to the confirm dialog on right click when no desktop menu bridge exists", () => {
+    render(<App />);
+
+    fireEvent.contextMenu(screen.getByText("WeChat"), {
+      clientX: 48,
+      clientY: 32
+    });
+
+    const dialog = screen.getByRole("dialog");
+
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("WeChat");
+  });
+
+  it("opens the confirm dialog after the desktop context menu emits terminate action", async () => {
+    const showProcessContextMenu = vi.fn().mockResolvedValue(undefined);
+    const listProcesses = vi.fn().mockResolvedValue(mockProcesses);
+    let handleAction: ((action: { action: "terminate"; pid: number }) => void) | null = null;
+
+    window.appManagerDesktop = {
+      bootstrapState: vi.fn().mockResolvedValue({
+        appName: "App Manager",
+        runtime: "electron",
+        shell: "desktop"
+      }),
+      listProcesses,
+      terminateProcess: vi.fn(),
+      showProcessContextMenu,
+      onProcessContextAction(listener) {
+        handleAction = listener;
+        return vi.fn();
+      }
+    };
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(listProcesses).toHaveBeenCalled();
+    });
+
+    fireEvent.contextMenu(screen.getByText("WeChat"), {
+      clientX: 64,
+      clientY: 40
+    });
+
+    expect(showProcessContextMenu).toHaveBeenCalledWith(
+      expect.objectContaining({ pid: 2831, name: "WeChat" }),
+      { x: 64, y: 40 }
+    );
+
+    await act(async () => {
+      handleAction?.({ action: "terminate", pid: 2831 });
+    });
+
+    const dialog = await screen.findByRole("dialog");
+
+    expect(dialog).toBeInTheDocument();
+    expect(dialog).toHaveTextContent("WeChat");
   });
 });

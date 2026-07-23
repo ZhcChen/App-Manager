@@ -4,10 +4,27 @@ import type {
 } from "@/features/processes/types";
 import type { DesktopBootstrap } from "./desktopRuntime";
 
+export type DesktopContextMenuPosition = {
+  x: number;
+  y: number;
+};
+
+export type ProcessContextAction = {
+  action: "terminate";
+  pid: number;
+};
+
 export type DesktopBridge = {
   bootstrapState(): Promise<DesktopBootstrap>;
   listProcesses(): Promise<ProcessItem[]>;
   terminateProcess(pid: number): Promise<TerminateProcessResult>;
+  showProcessContextMenu?(
+    item: ProcessItem,
+    position: DesktopContextMenuPosition
+  ): Promise<void>;
+  onProcessContextAction?(
+    listener: (action: ProcessContextAction) => void
+  ): () => void;
 };
 
 declare global {

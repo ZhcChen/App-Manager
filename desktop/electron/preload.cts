@@ -25,6 +25,16 @@ type TerminateProcessResult = {
   name: string;
 };
 
+type ProcessContextMenuPosition = {
+  x: number;
+  y: number;
+};
+
+type ProcessContextAction = {
+  action: "terminate";
+  pid: number;
+};
+
 async function invokeDesktopChannel<T>(
   channel: string,
   ...args: unknown[]
@@ -55,5 +65,31 @@ contextBridge.exposeInMainWorld("appManagerDesktop", {
       DESKTOP_CHANNELS.terminateProcess,
       pid
     );
+  },
+  showProcessContextMenu(
+    item: ProcessItem,
+    position: ProcessContextMenuPosition
+  ) {
+    return invokeDesktopChannel<null>(
+      DESKTOP_CHANNELS.showProcessContextMenu,
+      {
+        item,
+        position
+      }
+    ).then(() => undefined);
+  },
+  onProcessContextAction(listener: (action: ProcessContextAction) => void) {
+    const handleAction = (
+      _event: unknown,
+      action: ProcessContextAction
+    ) => {
+      listener(action);
+    };
+
+    ipcRenderer.on(DESKTOP_CHANNELS.processContextAction, handleAction);
+
+    return () => {
+      ipcRenderer.off(DESKTOP_CHANNELS.processContextAction, handleAction);
+    };
   }
 });

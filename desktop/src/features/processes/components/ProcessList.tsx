@@ -14,6 +14,13 @@ type ProcessListProps = {
   sortDirection: SortDirection;
   terminatingPid: number | null;
   onSelect: (item: ProcessItem) => void;
+  onOpenContextMenu: (
+    item: ProcessItem,
+    position: {
+      x: number;
+      y: number;
+    }
+  ) => void;
   onSortChange: (key: ProcessSortKey) => void;
   onRetry: () => void;
 };
@@ -30,6 +37,7 @@ export function ProcessList(props: ProcessListProps) {
     sortDirection,
     terminatingPid,
     onSelect,
+    onOpenContextMenu,
     onSortChange,
     onRetry
   } = props;
@@ -111,6 +119,14 @@ export function ProcessList(props: ProcessListProps) {
                 key={item.pid}
                 className={selected ? "is-selected" : undefined}
                 onClick={() => onSelect(item)}
+                onContextMenu={(event) => {
+                  event.preventDefault();
+                  onSelect(item);
+                  onOpenContextMenu(item, {
+                    x: event.clientX,
+                    y: event.clientY
+                  });
+                }}
               >
                 {columns.map((column) => {
                   if (column.key === "name") {
