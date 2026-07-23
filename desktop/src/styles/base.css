@@ -231,23 +231,19 @@ button:disabled {
 }
 
 .refresh-interval-control {
-  display: grid;
-  gap: 6px;
+  display: block;
   min-width: 126px;
-}
-
-.refresh-interval-control__label {
-  margin: 0;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-2xs);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  text-align: right;
 }
 
 .refresh-interval-control__field {
   position: relative;
   display: block;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: var(--shadow-float-strong);
+  transition:
+    box-shadow 160ms ease,
+    transform 160ms ease;
 }
 
 .refresh-interval-control__field::after {
@@ -263,15 +259,23 @@ button:disabled {
   pointer-events: none;
 }
 
+.refresh-interval-control__field:hover {
+  box-shadow: var(--shadow-float-hover);
+}
+
+.refresh-interval-control__field:focus-within {
+  box-shadow: var(--shadow-float-hover);
+}
+
 .refresh-interval-control select {
   width: 100%;
-  min-height: 40px;
+  min-height: 44px;
   padding: 0 34px 0 14px;
   border: 0;
   border-radius: 999px;
   appearance: none;
-  background: #f7f9fc;
-  box-shadow: var(--shadow-float-soft);
+  background: transparent;
+  box-shadow: none;
   color: var(--color-text-primary);
   font-size: var(--font-size-xs);
   font-weight: 600;
@@ -279,7 +283,7 @@ button:disabled {
 }
 
 .refresh-interval-control select:hover {
-  background: #f3f6fb;
+  background: transparent;
 }
 
 .monitor-toolbar {
@@ -817,10 +821,6 @@ button:disabled {
 
   .monitor-header__actions {
     justify-self: start;
-  }
-
-  .refresh-interval-control__label {
-    text-align: left;
   }
 
   .monitor-summary__stats {

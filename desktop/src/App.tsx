@@ -220,7 +220,6 @@ export function App() {
 
           <div className="monitor-header__actions">
             <label className="refresh-interval-control">
-              <span className="refresh-interval-control__label">自动刷新</span>
               <span className="refresh-interval-control__field">
                 <select
                   aria-label="自动刷新间隔"
