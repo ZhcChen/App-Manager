@@ -4,5 +4,7 @@ export const DESKTOP_CHANNELS = {
   listPorts: "ports:list",
   terminateProcess: "processes:terminate",
   showProcessContextMenu: "processes:show-context-menu",
-  processContextAction: "processes:context-action"
+  processContextAction: "processes:context-action",
+  checkForUpdates: "updates:check",
+  openUpdateDownload: "updates:open-download"
 } as const;

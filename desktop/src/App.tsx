@@ -1,6 +1,15 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties
+} from "react";
 import appManagerMarkUrl from "@app-manager/brand/logo/app-manager-mark.svg";
+import packageJson from "../package.json";
 import { ActivityIcon, PortIcon } from "./components/icons";
+import type { TransientFeedback } from "./components/feedback";
 import { RefreshIntervalSelect } from "./components/RefreshIntervalSelect";
 import { TransientToast } from "./components/TransientToast";
 import { getDesktopBridge } from "./lib/desktopBridge";
@@ -10,6 +19,9 @@ import { ProcessList } from "./features/processes/components/ProcessList";
 import { ProcessToolbar } from "./features/processes/components/ProcessToolbar";
 import { TerminateDialog } from "./features/processes/components/TerminateDialog";
 import { PortList } from "./features/ports/components/PortList";
+import { UpdateDialog } from "./features/updates/components/UpdateDialog";
+import { openUpdateDownload, toUpdateApiError } from "./features/updates/api";
+import { useUpdateCheck } from "./features/updates/useUpdateCheck";
 import {
   AUTO_REFRESH_INTERVAL_MS,
   AUTO_REFRESH_INTERVAL_OPTIONS_MS,
@@ -17,9 +29,7 @@ import {
   isAutoRefreshIntervalMs,
   type AutoRefreshIntervalMs
 } from "./features/processes/refresh-policy";
-import type { ProcessItem } from "./features/processes/types";
 import { useProcesses } from "./features/processes/useProcesses";
-import type { ProcessFeedback } from "./features/processes/types";
 import {
   type ProcessSortKey,
   type ProcessViewId,
@@ -28,7 +38,6 @@ import {
   PROCESS_VIEW_ORDER,
   getMetricValue
 } from "./features/processes/view-config";
-import type { PortBindingItem } from "./features/ports/types";
 import { usePorts } from "./features/ports/usePorts";
 import {
   type PortSortKey,
@@ -50,8 +59,8 @@ type TerminateTarget = {
 };
 
 type ActiveFeedback = {
-  source: "processes" | "ports";
-  item: ProcessFeedback;
+  source: "processes" | "ports" | "updates";
+  item: TransientFeedback;
 };
 
 function getInitialAutoRefreshInterval(): AutoRefreshIntervalMs {
@@ -81,6 +90,7 @@ function isProcessView(view: MonitorViewId): view is ProcessViewId {
 export function App() {
   const [bootstrapState, setBootstrapState] = useState<DesktopBootstrap>({
     appName: "App Manager",
+    appVersion: packageJson.version,
     runtime: "browser",
     shell: "desktop"
   });
@@ -91,6 +101,12 @@ export function App() {
   const [selectedPid, setSelectedPid] = useState<number | null>(null);
   const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
   const [target, setTarget] = useState<TerminateTarget | null>(null);
+  const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const [updateFeedback, setUpdateFeedback] = useState<TransientFeedback | null>(
+    null
+  );
+  const isMountedRef = useRef(true);
+  const updateFeedbackIdRef = useRef(0);
   const [sortKey, setSortKey] = useState<ProcessSortKey>(
     PROCESS_VIEW_CONFIG.cpu.defaultSort.key
   );
@@ -105,6 +121,15 @@ export function App() {
   );
   const processes = useProcesses(autoRefreshIntervalMs);
   const ports = usePorts(autoRefreshIntervalMs);
+  const updates = useUpdateCheck(bootstrapState.appVersion);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     try {
@@ -123,6 +148,10 @@ export function App() {
     }
 
     void loadDesktopBootstrap().then((result) => {
+      if (!isMountedRef.current) {
+        return;
+      }
+
       setBootstrapState(result);
       if (result.runtime === "electron") {
         void Promise.all([
@@ -328,8 +357,29 @@ export function App() {
     setTarget(null);
   };
 
+  const pushUpdateFeedback = useCallback((title: string, message: string) => {
+    if (!isMountedRef.current) {
+      return;
+    }
+
+    updateFeedbackIdRef.current += 1;
+    setUpdateFeedback({
+      id: updateFeedbackIdRef.current,
+      tone: "error",
+      title,
+      message
+    });
+  }, []);
+
   const activeViewLabel = MONITOR_VIEW_LABELS[activeView];
   const activeFeedback = useMemo<ActiveFeedback | null>(() => {
+    if (updateFeedback) {
+      return {
+        source: "updates",
+        item: updateFeedback
+      };
+    }
+
     if (activeView === "ports") {
       if (ports.feedback) {
         return {
@@ -356,7 +406,7 @@ export function App() {
     }
 
     return null;
-  }, [activeView, ports.feedback, processes.feedback]);
+  }, [activeView, ports.feedback, processes.feedback, updateFeedback]);
 
   return (
     <main className="app-shell">
@@ -369,7 +419,26 @@ export function App() {
               alt={`${bootstrapState.appName} 标志`}
             />
             <div className="monitor-header__copy">
-              <h1>{bootstrapState.appName}</h1>
+              <div className="monitor-header__name-row">
+                <h1>{bootstrapState.appName}</h1>
+                <button
+                  type="button"
+                  className={`app-version-button ${
+                    updates.hasUpdate ? "has-update" : ""
+                  }`}
+                  aria-label={
+                    updates.hasUpdate
+                      ? `当前版本 v${bootstrapState.appVersion}，发现新版本`
+                      : `当前版本 v${bootstrapState.appVersion}`
+                  }
+                  onClick={() => setUpdateDialogOpen(true)}
+                >
+                  v{bootstrapState.appVersion}
+                  {updates.hasUpdate ? (
+                    <span className="app-version-button__dot" aria-hidden="true" />
+                  ) : null}
+                </button>
+              </div>
               <p>进程与端口监视器</p>
             </div>
           </div>
@@ -510,11 +579,37 @@ export function App() {
         onConfirm={handleConfirmTerminate}
       />
 
+      <UpdateDialog
+        isOpen={updateDialogOpen}
+        result={updates.result}
+        error={updates.error}
+        isChecking={updates.isChecking}
+        onClose={() => setUpdateDialogOpen(false)}
+        onCheckNow={() => {
+          void updates.check("manual");
+        }}
+        onOpenDownload={(url) => {
+          void openUpdateDownload(url).catch((cause) => {
+            pushUpdateFeedback(
+              "打开下载失败",
+              toUpdateApiError(cause).message
+            );
+          });
+        }}
+      />
+
       <TransientToast
         item={activeFeedback?.item ?? null}
         onClear={(feedbackId) => {
           if (activeFeedback?.source === "ports") {
             ports.dismissFeedback(feedbackId);
+            return;
+          }
+
+          if (activeFeedback?.source === "updates") {
+            setUpdateFeedback((current) =>
+              current?.id === feedbackId ? null : current
+            );
             return;
           }
 

@@ -1,13 +1,16 @@
 import { getDesktopBridge, isDesktopBridgeAvailable } from "./desktopBridge";
+import packageJson from "../../package.json";
 
 export type DesktopBootstrap = {
   appName: string;
+  appVersion: string;
   runtime: "browser" | "electron";
   shell: "desktop";
 };
 
 const FALLBACK_STATE: DesktopBootstrap = {
   appName: "App Manager",
+  appVersion: packageJson.version,
   runtime: "browser",
   shell: "desktop"
 };

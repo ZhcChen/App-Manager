@@ -45,6 +45,9 @@ describe("App", () => {
     expect(
       screen.getByRole("heading", { level: 1, name: "App Manager" })
     ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /当前版本 v/ })
+    ).toBeInTheDocument();
     expect(refreshIntervalButton).toHaveTextContent("3s");
     expect(within(tabs).getByRole("button", { name: "CPU" })).toBeInTheDocument();
     expect(within(tabs).getByRole("button", { name: "内存" })).toBeInTheDocument();
@@ -126,6 +129,7 @@ describe("App", () => {
     window.appManagerDesktop = {
       bootstrapState: vi.fn().mockResolvedValue({
         appName: "App Manager",
+        appVersion: "0.1.10",
         runtime: "electron",
         shell: "desktop"
       }),
@@ -153,6 +157,7 @@ describe("App", () => {
     window.appManagerDesktop = {
       bootstrapState: vi.fn().mockResolvedValue({
         appName: "App Manager",
+        appVersion: "0.1.10",
         runtime: "electron",
         shell: "desktop"
       }),
@@ -214,6 +219,7 @@ describe("App", () => {
     window.appManagerDesktop = {
       bootstrapState: vi.fn().mockResolvedValue({
         appName: "App Manager",
+        appVersion: "0.1.10",
         runtime: "electron",
         shell: "desktop"
       }),
@@ -263,6 +269,7 @@ describe("App", () => {
     window.appManagerDesktop = {
       bootstrapState: vi.fn().mockResolvedValue({
         appName: "App Manager",
+        appVersion: "0.1.10",
         runtime: "electron",
         shell: "desktop"
       }),
@@ -294,5 +301,132 @@ describe("App", () => {
 
     expect(alert).toHaveTextContent("端口列表更新失败");
     expect(alert).toHaveTextContent("port refresh failed");
+  });
+
+  it("shows an update badge and opens the update dialog", async () => {
+    const openUpdateDownload = vi.fn().mockResolvedValue(undefined);
+    const updateAsset = {
+      name: "App-Manager-0.1.11-mac-arm64.dmg",
+      url: "https://github.com/ZhcChen/App-Manager/releases/download/v0.1.11/App-Manager-0.1.11-mac-arm64.dmg",
+      platform: "macos" as const,
+      arch: "arm64" as const,
+      format: "dmg" as const,
+      isCurrentPlatform: true
+    };
+
+    window.appManagerDesktop = {
+      bootstrapState: vi.fn().mockResolvedValue({
+        appName: "App Manager",
+        appVersion: "0.1.10",
+        runtime: "electron",
+        shell: "desktop"
+      }),
+      listProcesses: vi.fn().mockResolvedValue(mockProcesses),
+      listPorts: vi.fn().mockResolvedValue(mockPorts),
+      terminateProcess: vi.fn(),
+      openUpdateDownload,
+      checkForUpdates: vi.fn().mockResolvedValue({
+        currentVersion: "0.1.10",
+        latestVersion: "0.1.11",
+        latestTag: "v0.1.11",
+        hasUpdate: true,
+        releaseName: "App Manager v0.1.11",
+        releaseUrl: "https://github.com/ZhcChen/App-Manager/releases/tag/v0.1.11",
+        releaseNotes: "",
+        publishedAt: "2026-07-23T00:00:00Z",
+        checkedAt: "2026-07-23T00:00:00Z",
+        currentPlatform: "macos",
+        currentArch: "arm64",
+        assets: [updateAsset],
+        currentPlatformAssets: [updateAsset]
+      })
+    };
+
+    render(<App />);
+
+    const versionButton = await screen.findByRole("button", {
+      name: "当前版本 v0.1.10，发现新版本"
+    });
+
+    fireEvent.click(versionButton);
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "发现新版本"
+    });
+
+    expect(dialog).toHaveTextContent("v0.1.10");
+    expect(dialog).toHaveTextContent("v0.1.11");
+    expect(dialog).toHaveTextContent("macOS arm64 · DMG");
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "macOS arm64 · DMG" })
+    );
+
+    await waitFor(() => {
+      expect(openUpdateDownload).toHaveBeenCalledWith(updateAsset.url);
+    });
+  });
+
+  it("shows a toast when opening an update download fails", async () => {
+    const updateAsset = {
+      name: "App-Manager-0.1.11-mac-arm64.dmg",
+      url: "https://github.com/ZhcChen/App-Manager/releases/download/v0.1.11/App-Manager-0.1.11-mac-arm64.dmg",
+      platform: "macos" as const,
+      arch: "arm64" as const,
+      format: "dmg" as const,
+      isCurrentPlatform: true
+    };
+
+    window.appManagerDesktop = {
+      bootstrapState: vi.fn().mockResolvedValue({
+        appName: "App Manager",
+        appVersion: "0.1.10",
+        runtime: "electron",
+        shell: "desktop"
+      }),
+      listProcesses: vi.fn().mockResolvedValue(mockProcesses),
+      listPorts: vi.fn().mockResolvedValue(mockPorts),
+      terminateProcess: vi.fn(),
+      openUpdateDownload: vi.fn().mockRejectedValue({
+        code: "open_download_failed",
+        message: "Unable to open browser."
+      }),
+      checkForUpdates: vi.fn().mockResolvedValue({
+        currentVersion: "0.1.10",
+        latestVersion: "0.1.11",
+        latestTag: "v0.1.11",
+        hasUpdate: true,
+        releaseName: "App Manager v0.1.11",
+        releaseUrl: "https://github.com/ZhcChen/App-Manager/releases/tag/v0.1.11",
+        releaseNotes: "",
+        publishedAt: "2026-07-23T00:00:00Z",
+        checkedAt: "2026-07-23T00:00:00Z",
+        currentPlatform: "macos",
+        currentArch: "arm64",
+        assets: [updateAsset],
+        currentPlatformAssets: [updateAsset]
+      })
+    };
+
+    render(<App />);
+
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "当前版本 v0.1.10，发现新版本"
+      })
+    );
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "发现新版本"
+    });
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "macOS arm64 · DMG" })
+    );
+
+    const alert = await screen.findByRole("alert");
+
+    expect(alert).toHaveTextContent("打开下载失败");
+    expect(alert).toHaveTextContent("Unable to open browser.");
   });
 });

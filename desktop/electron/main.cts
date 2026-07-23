@@ -2,6 +2,7 @@ import path from "node:path";
 import { app, BrowserWindow, nativeImage } from "electron";
 import { registerBootstrapHandlers } from "./ipc/bootstrap.cjs";
 import { registerProcessHandlers } from "./ipc/processes.cjs";
+import { registerUpdateHandlers } from "./ipc/updates.cjs";
 
 const isDevRuntime = !app.isPackaged || process.env.APP_MANAGER_CHANNEL === "dev";
 const APP_DISPLAY_NAME = isDevRuntime ? "App Manager Dev" : "App Manager";
@@ -95,6 +96,7 @@ if (!acquiredSingleInstanceLock) {
     applyRuntimeBrandIcon();
     registerBootstrapHandlers();
     registerProcessHandlers();
+    registerUpdateHandlers();
     createMainWindow();
 
     app.on("activate", () => {

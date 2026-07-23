@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import packageJson from "../../package.json";
 import { isElectronRuntime, loadDesktopBootstrap } from "./desktopRuntime";
 
 describe("desktopRuntime", () => {
@@ -10,6 +11,7 @@ describe("desktopRuntime", () => {
     expect(isElectronRuntime()).toBe(false);
     await expect(loadDesktopBootstrap()).resolves.toEqual({
       appName: "App Manager",
+      appVersion: packageJson.version,
       runtime: "browser",
       shell: "desktop"
     });
@@ -19,6 +21,7 @@ describe("desktopRuntime", () => {
     window.appManagerDesktop = {
       bootstrapState: vi.fn().mockResolvedValue({
         appName: "App Manager",
+        appVersion: "0.1.10",
         runtime: "electron",
         shell: "desktop"
       }),
@@ -30,6 +33,7 @@ describe("desktopRuntime", () => {
     expect(isElectronRuntime()).toBe(true);
     await expect(loadDesktopBootstrap()).resolves.toEqual({
       appName: "App Manager",
+      appVersion: "0.1.10",
       runtime: "electron",
       shell: "desktop"
     });
@@ -45,6 +49,7 @@ describe("desktopRuntime", () => {
 
     await expect(loadDesktopBootstrap()).resolves.toEqual({
       appName: "App Manager",
+      appVersion: packageJson.version,
       runtime: "electron",
       shell: "desktop"
     });

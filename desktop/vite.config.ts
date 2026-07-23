@@ -4,6 +4,9 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   base: "./",
+  esbuild: {
+    include: /\.[cm]?[jt]sx?$/
+  },
   plugins: [react()],
   resolve: {
     alias: {

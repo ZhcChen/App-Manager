@@ -1,3 +1,5 @@
+import type { TransientFeedback } from "@/components/feedback";
+
 export type ProcessItem = {
   pid: number;
   name: string;
@@ -25,9 +27,4 @@ export type ProcessApiError = {
   message: string;
 };
 
-export type ProcessFeedback = {
-  id: number;
-  tone: "success" | "error";
-  title: string;
-  message: string;
-};
+export type ProcessFeedback = TransientFeedback;

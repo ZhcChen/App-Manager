@@ -1,19 +1,21 @@
 import { useEffect, useState } from "react";
-import type { ProcessFeedback } from "@/features/processes/types";
 import { AlertIcon, SuccessIcon } from "./icons";
+import type { TransientFeedback } from "./feedback";
 
 const TOAST_ENTER_DELAY_MS = 16;
 const TOAST_AUTO_HIDE_MS = 2600;
 const TOAST_EXIT_MS = 220;
 
 type TransientToastProps = {
-  item: ProcessFeedback | null;
+  item: TransientFeedback | null;
   onClear: (feedbackId: number) => void;
 };
 
 export function TransientToast(props: TransientToastProps) {
   const { item, onClear } = props;
-  const [renderedItem, setRenderedItem] = useState<ProcessFeedback | null>(item);
+  const [renderedItem, setRenderedItem] = useState<TransientFeedback | null>(
+    item
+  );
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
