@@ -10,16 +10,19 @@
   --font-size-xl: 18px;
   --shadow-float-soft:
     0 0 0 1px rgba(16, 32, 51, 0.03),
-    0 6px 12px rgba(16, 32, 51, 0.04),
-    0 16px 32px rgba(16, 32, 51, 0.08);
+    0 0 14px rgba(16, 32, 51, 0.045),
+    0 4px 12px rgba(16, 32, 51, 0.035),
+    0 10px 22px -16px rgba(16, 32, 51, 0.08);
   --shadow-float-strong:
     0 0 0 1px rgba(16, 32, 51, 0.03),
-    0 10px 22px rgba(16, 32, 51, 0.06),
-    0 24px 48px rgba(16, 32, 51, 0.12);
+    0 0 22px rgba(16, 32, 51, 0.06),
+    0 6px 16px rgba(16, 32, 51, 0.045),
+    0 14px 30px -18px rgba(16, 32, 51, 0.09);
   --shadow-float-hover:
     0 0 0 1px rgba(16, 32, 51, 0.04),
-    0 14px 28px rgba(16, 32, 51, 0.08),
-    0 30px 60px rgba(16, 32, 51, 0.14);
+    0 0 28px rgba(16, 32, 51, 0.075),
+    0 8px 18px rgba(16, 32, 51, 0.055),
+    0 18px 34px -18px rgba(16, 32, 51, 0.11);
   font-synthesis: none;
   line-height: 1.4;
   text-rendering: optimizeLegibility;
