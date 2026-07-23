@@ -39,7 +39,7 @@ if (!appBundlePath) {
   process.exit(1);
 }
 
-const openProcess = spawn("open", [appBundlePath], {
+const openProcess = spawn("open", ["-n", appBundlePath], {
   stdio: "inherit"
 });
 

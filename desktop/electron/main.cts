@@ -35,7 +35,7 @@ function createMainWindow() {
     minHeight: 760,
     show: false,
     title: "App Manager",
-    backgroundColor: "#edf0f5",
+    backgroundColor: "#ffffff",
     ...(windowIcon ? { icon: windowIcon } : {}),
     webPreferences: {
       preload: path.join(__dirname, "preload.cjs"),

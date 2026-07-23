@@ -1,6 +1,6 @@
 :root {
   color: var(--color-text-primary);
-  background: #edf1f5;
+  background: #ffffff;
   font-family: var(--font-family-ui);
   --font-size-2xs: 11px;
   --font-size-xs: 12px;
@@ -30,6 +30,7 @@ body {
   margin: 0;
   overflow: hidden;
   font-size: var(--font-size-sm);
+  background: #ffffff;
 }
 
 button,
@@ -50,6 +51,7 @@ button:disabled {
   min-height: 100dvh;
   padding: 10px;
   overflow: hidden;
+  background: #ffffff;
 }
 
 .monitor-shell {
@@ -61,7 +63,7 @@ button:disabled {
   padding: 12px 14px 10px;
   border: 1px solid rgba(16, 32, 51, 0.09);
   border-radius: 16px;
-  background: #fcfdff;
+  background: #ffffff;
   box-shadow: 0 10px 28px rgba(16, 32, 51, 0.06);
   font-variant-numeric: tabular-nums;
   overflow: hidden;
