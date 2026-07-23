@@ -169,8 +169,8 @@ button:disabled {
   padding: 4px;
   justify-self: center;
   border-radius: 999px;
-  background: #e1e5ea;
-  box-shadow: 0 8px 18px rgba(16, 32, 51, 0.045);
+  background: #e8ebef;
+  box-shadow: 0 7px 16px rgba(16, 32, 51, 0.04);
 }
 
 .view-tabs__indicator {
