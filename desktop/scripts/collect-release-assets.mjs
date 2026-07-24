@@ -101,13 +101,45 @@ function getSourceArtifactContext(sourcePath) {
   return null;
 }
 
-function getExpectedLinuxDebArch(artifactArch) {
-  if (artifactArch === "x64") {
-    return "amd64";
+function splitBlockmapSuffix(fileName) {
+  if (fileName.toLowerCase().endsWith(".blockmap")) {
+    return {
+      baseName: fileName.slice(0, -".blockmap".length),
+      suffix: ".blockmap"
+    };
   }
 
-  if (artifactArch === "arm64") {
-    return "arm64";
+  return {
+    baseName: fileName,
+    suffix: ""
+  };
+}
+
+function getExpectedLinuxAssetArch(fileName, artifactArch) {
+  const normalizedName = fileName.toLowerCase();
+
+  if (normalizedName.endsWith(".deb")) {
+    if (artifactArch === "x64") {
+      return "amd64";
+    }
+
+    if (artifactArch === "arm64") {
+      return "arm64";
+    }
+
+    return null;
+  }
+
+  if (normalizedName.endsWith(".appimage")) {
+    if (artifactArch === "x64") {
+      return "x64";
+    }
+
+    if (artifactArch === "arm64") {
+      return "arm64";
+    }
+
+    return null;
   }
 
   return null;
@@ -115,19 +147,20 @@ function getExpectedLinuxDebArch(artifactArch) {
 
 function normalizeReleaseAssetName(fileName, sourcePath) {
   const context = getSourceArtifactContext(sourcePath);
+  const { baseName, suffix } = splitBlockmapSuffix(fileName);
 
-  if (!context || context.platform !== "linux" || path.extname(fileName).toLowerCase() !== ".deb") {
+  if (!context || context.platform !== "linux") {
     return fileName;
   }
 
-  const expectedArch = getExpectedLinuxDebArch(context.arch);
-  const match = fileName.match(/^(.*-linux-)([^.]+)(\.deb)$/i);
+  const expectedArch = getExpectedLinuxAssetArch(baseName, context.arch);
+  const match = baseName.match(/^(.*-linux-)([^.]+)(\.[^.]+)$/i);
 
   if (!expectedArch || !match) {
     return fileName;
   }
 
-  return `${match[1]}${expectedArch}${match[3]}`;
+  return `${match[1]}${expectedArch}${match[3]}${suffix}`;
 }
 
 function pruneNormalizedAliasSources(fileName, sourceFiles) {

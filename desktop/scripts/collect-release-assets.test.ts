@@ -229,4 +229,87 @@ sha512: arm64deb
       await readFile(path.join(targetDir, `App-Manager-${version}-linux-arm64.deb`), "utf8")
     ).toBe("canonical-binary");
   });
+
+  it("normalizes Linux AppImage assets and blockmaps using the artifact directory architecture", async () => {
+    const sourceDir = await createTempDir();
+    const targetDir = path.join(sourceDir, "out");
+    const appImageName = `App-Manager-${version}-linux-arm64.AppImage`;
+    const blockmapName = `${appImageName}.blockmap`;
+
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-linux-x64-assets/${appImageName}`,
+      "linux-x64-appimage"
+    );
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-linux-x64-assets/${blockmapName}`,
+      "linux-x64-blockmap"
+    );
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-linux-arm64-assets/${appImageName}`,
+      "linux-arm64-appimage"
+    );
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-linux-arm64-assets/${blockmapName}`,
+      "linux-arm64-blockmap"
+    );
+
+    runCollector(sourceDir, targetDir);
+
+    expect(
+      await readFile(path.join(targetDir, `App-Manager-${version}-linux-x64.AppImage`), "utf8")
+    ).toBe("linux-x64-appimage");
+    expect(
+      await readFile(
+        path.join(targetDir, `App-Manager-${version}-linux-x64.AppImage.blockmap`),
+        "utf8"
+      )
+    ).toBe("linux-x64-blockmap");
+    expect(
+      await readFile(path.join(targetDir, `App-Manager-${version}-linux-arm64.AppImage`), "utf8")
+    ).toBe("linux-arm64-appimage");
+    expect(
+      await readFile(
+        path.join(targetDir, `App-Manager-${version}-linux-arm64.AppImage.blockmap`),
+        "utf8"
+      )
+    ).toBe("linux-arm64-blockmap");
+  });
+
+  it("rewrites Linux x64 metadata that references a misnamed arm64 AppImage asset", async () => {
+    const sourceDir = await createTempDir();
+    const targetDir = path.join(sourceDir, "out");
+
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-linux-x64-assets/App-Manager-${version}-linux-arm64.AppImage`,
+      "linux-x64-appimage"
+    );
+    await writeFixtureFile(
+      sourceDir,
+      "desktop-linux-x64-assets/latest-linux.yml",
+      `version: ${version}
+files:
+  - url: App-Manager-${version}-linux-arm64.AppImage
+    sha512: x64appimage
+path: App-Manager-${version}-linux-arm64.AppImage
+sha512: x64appimage
+`
+    );
+
+    runCollector(sourceDir, targetDir);
+
+    const output = parse(await readFile(path.join(targetDir, "latest-linux.yml"), "utf8"));
+    expect(output.path).toBe(`App-Manager-${version}-linux-x64.AppImage`);
+    expect(output.sha512).toBe("x64appimage");
+    expect(output.files).toEqual([
+      {
+        url: `App-Manager-${version}-linux-x64.AppImage`,
+        sha512: "x64appimage"
+      }
+    ]);
+  });
 });
