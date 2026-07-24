@@ -1,3 +1,4 @@
+import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DESKTOP_CHANNELS } from "./channels.cjs";
 
@@ -64,7 +65,7 @@ const {
   return {
     appMock: {
       getVersion: vi.fn(() => "0.1.10"),
-      getPath: vi.fn(() => "/tmp"),
+      getPath: vi.fn(() => mockedDownloadsDir),
       isPackaged: true
     },
     browserWindowMock: {
@@ -143,6 +144,7 @@ const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
   "platform"
 );
 const originalArchDescriptor = Object.getOwnPropertyDescriptor(process, "arch");
+const mockedDownloadsDir = "/tmp";
 
 function mockRuntimePlatform(
   platform: NodeJS.Platform,
@@ -188,7 +190,7 @@ describe("update IPC helpers", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.mocked(appMock.getVersion).mockReturnValue("0.1.10");
-    vi.mocked(appMock.getPath).mockReturnValue("/tmp");
+    vi.mocked(appMock.getPath).mockReturnValue(mockedDownloadsDir);
     appMock.isPackaged = true;
     vi.mocked(browserWindowMock.getAllWindows).mockImplementation(() => [
       {
@@ -448,6 +450,15 @@ describe("update IPC helpers", () => {
   });
 
   it("downloads and opens the installer on macOS when only ad-hoc signing is available", async () => {
+    const installerDirectory = path.join(
+      mockedDownloadsDir,
+      "App Manager Updates"
+    );
+    const installerPath = path.join(
+      installerDirectory,
+      "App-Manager-0.1.11-mac-arm64.dmg"
+    );
+
     mockRuntimePlatform("darwin", "arm64");
     execFileMock.mockImplementation(
       (
@@ -488,12 +499,10 @@ describe("update IPC helpers", () => {
     });
 
     expect(updaterMock.checkForUpdates).not.toHaveBeenCalled();
-    expect(mkdirMock).toHaveBeenCalledWith("/tmp/App Manager Updates", {
+    expect(mkdirMock).toHaveBeenCalledWith(installerDirectory, {
       recursive: true
     });
-    expect(shellMock.openPath).toHaveBeenCalledWith(
-      "/tmp/App Manager Updates/App-Manager-0.1.11-mac-arm64.dmg"
-    );
+    expect(shellMock.openPath).toHaveBeenCalledWith(installerPath);
     expect(sendMock).toHaveBeenLastCalledWith(
       DESKTOP_CHANNELS.updateInstallStateChanged,
       expect.objectContaining({
@@ -506,6 +515,12 @@ describe("update IPC helpers", () => {
   });
 
   it("falls back to the installer flow after a macOS code-sign validation error", async () => {
+    const installerPath = path.join(
+      mockedDownloadsDir,
+      "App Manager Updates",
+      "App-Manager-0.1.11-mac-arm64.dmg"
+    );
+
     mockRuntimePlatform("darwin", "arm64");
     vi.stubGlobal(
       "fetch",
@@ -550,9 +565,7 @@ describe("update IPC helpers", () => {
     });
 
     await vi.waitFor(() => {
-      expect(shellMock.openPath).toHaveBeenCalledWith(
-        "/tmp/App Manager Updates/App-Manager-0.1.11-mac-arm64.dmg"
-      );
+      expect(shellMock.openPath).toHaveBeenCalledWith(installerPath);
     });
   });
 });
