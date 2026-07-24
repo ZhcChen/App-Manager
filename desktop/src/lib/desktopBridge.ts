@@ -8,7 +8,10 @@ import type {
   TerminateProcessesResult
 } from "@/features/applications/types";
 import type { PortBindingItem } from "@/features/ports/types";
-import type { UpdateCheckResult } from "@/features/updates/types";
+import type {
+  UpdateCheckResult,
+  UpdateInstallState
+} from "@/features/updates/types";
 import type { DesktopBootstrap } from "./desktopRuntime";
 
 export type DesktopContextMenuPosition = {
@@ -51,7 +54,11 @@ export type DesktopBridge = {
   terminateProcess(pid: number): Promise<TerminateProcessResult>;
   terminateProcesses?(pids: number[]): Promise<TerminateProcessesResult>;
   checkForUpdates?(): Promise<UpdateCheckResult>;
-  openUpdateDownload?(url: string): Promise<void>;
+  getUpdateInstallState?(): Promise<UpdateInstallState>;
+  startUpdateInstall?(): Promise<void>;
+  onUpdateInstallState?(
+    listener: (state: UpdateInstallState) => void
+  ): () => void;
   showProcessContextMenu?(
     item: DesktopContextMenuItem,
     position: DesktopContextMenuPosition

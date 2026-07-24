@@ -1,7 +1,8 @@
-import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { UpdateDialog } from "./UpdateDialog";
-import type { UpdateCheckResult } from "../types";
+import type { UpdateCheckResult, UpdateInstallState } from "../types";
+import { createIdleUpdateInstallState } from "../types";
 
 const asset = {
   name: "App-Manager-0.1.11-mac-arm64.dmg",
@@ -37,15 +38,26 @@ const result: UpdateCheckResult = {
   currentPlatformAssets: [asset]
 };
 
-function createDeferred() {
-  let resolve!: () => void;
-  const promise = new Promise<void>((innerResolve) => {
-    resolve = innerResolve;
-  });
+function renderDialog(installState: UpdateInstallState) {
+  const onStartInstall = vi.fn().mockResolvedValue(undefined);
+
+  render(
+    <UpdateDialog
+      isOpen
+      currentVersion="0.1.10"
+      result={result}
+      error={null}
+      isChecking={false}
+      installState={installState}
+      onClose={vi.fn()}
+      onCheckNow={vi.fn()}
+      onStartInstall={onStartInstall}
+    />
+  );
 
   return {
-    promise,
-    resolve
+    onStartInstall,
+    dialog: screen.getByRole("dialog", { name: "发现新版本" })
   };
 }
 
@@ -58,33 +70,18 @@ describe("UpdateDialog", () => {
         result={result}
         error={null}
         isChecking={false}
+        installState={createIdleUpdateInstallState()}
         onClose={vi.fn()}
         onCheckNow={vi.fn()}
-        onOpenDownload={vi.fn()}
+        onStartInstall={vi.fn()}
       />
     );
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("renders only the current platform update and opens it with progress", async () => {
-    const deferred = createDeferred();
-    const onOpenDownload = vi.fn().mockReturnValue(deferred.promise);
-
-    render(
-      <UpdateDialog
-        isOpen
-        currentVersion="0.1.10"
-        result={result}
-        error={null}
-        isChecking={false}
-        onClose={vi.fn()}
-        onCheckNow={vi.fn()}
-        onOpenDownload={onOpenDownload}
-      />
-    );
-
-    const dialog = screen.getByRole("dialog", { name: "发现新版本" });
+  it("renders only the current platform update and starts install flow", () => {
+    const { dialog, onStartInstall } = renderDialog(createIdleUpdateInstallState());
 
     expect(dialog).toHaveTextContent("v0.1.10");
     expect(dialog).toHaveTextContent("v0.1.11");
@@ -96,20 +93,44 @@ describe("UpdateDialog", () => {
       within(dialog).getByRole("button", { name: "升级到 v0.1.11" })
     );
 
-    expect(onOpenDownload).toHaveBeenCalledWith(asset.url);
-    expect(within(dialog).getByRole("progressbar", { name: "升级进度" }))
-      .toHaveAttribute("aria-valuenow", "18");
-    expect(within(dialog).getByRole("button", { name: "正在升级..." }))
-      .toBeDisabled();
+    expect(onStartInstall).toHaveBeenCalledTimes(1);
+    expect(dialog).toHaveTextContent("下载完成后会自动开始安装");
+  });
 
-    await act(async () => {
-      deferred.resolve();
-      await deferred.promise;
+  it("shows real progress and disables the action while downloading", () => {
+    const { dialog } = renderDialog({
+      phase: "downloading",
+      version: "0.1.11",
+      progressPercent: 64,
+      transferredBytes: 640,
+      totalBytes: 1_000,
+      bytesPerSecond: 128,
+      message: "正在下载更新..."
+    });
+
+    expect(within(dialog).getByRole("progressbar", { name: "升级进度" }))
+      .toHaveAttribute("aria-valuenow", "64");
+    expect(within(dialog).getByRole("button", { name: "正在下载..." }))
+      .toBeDisabled();
+    expect(dialog).toHaveTextContent("正在下载更新...");
+  });
+
+  it("shows install state after the package is downloaded", () => {
+    const { dialog } = renderDialog({
+      phase: "installing",
+      version: "0.1.11",
+      progressPercent: 100,
+      transferredBytes: 1_000,
+      totalBytes: 1_000,
+      bytesPerSecond: null,
+      message: "正在启动安装程序，应用即将退出..."
     });
 
     expect(within(dialog).getByRole("progressbar", { name: "升级进度" }))
       .toHaveAttribute("aria-valuenow", "100");
-    expect(dialog).toHaveTextContent("已打开下载页面");
+    expect(within(dialog).getByRole("button", { name: "正在安装..." }))
+      .toBeDisabled();
+    expect(dialog).toHaveTextContent("应用即将退出");
   });
 
   it("shows a neutral title before the first update result arrives", () => {
@@ -120,9 +141,10 @@ describe("UpdateDialog", () => {
         result={null}
         error={null}
         isChecking
+        installState={createIdleUpdateInstallState()}
         onClose={vi.fn()}
         onCheckNow={vi.fn()}
-        onOpenDownload={vi.fn()}
+        onStartInstall={vi.fn()}
       />
     );
 

@@ -2,9 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   checkForUpdates,
   createNoUpdateResult,
-  openUpdateDownload,
+  getUpdateInstallState,
+  startUpdateInstall,
+  subscribeToUpdateInstallState,
   toUpdateApiError
 } from "./api";
+import { createIdleUpdateInstallState } from "./types";
 
 describe("updates api", () => {
   beforeEach(() => {
@@ -53,36 +56,68 @@ describe("updates api", () => {
     });
   });
 
-  it("delegates download opening to the desktop bridge", async () => {
-    const openUpdateDownloadMock = vi.fn().mockResolvedValue(undefined);
-
-    window.appManagerDesktop = {
-      bootstrapState: vi.fn(),
-      listProcesses: vi.fn(),
-      listPorts: vi.fn(),
-      terminateProcess: vi.fn(),
-      openUpdateDownload: openUpdateDownloadMock
-    };
-
-    await openUpdateDownload("https://example.com/download.dmg");
-
-    expect(openUpdateDownloadMock).toHaveBeenCalledWith(
-      "https://example.com/download.dmg"
+  it("returns idle install state when the desktop bridge is unavailable", async () => {
+    await expect(getUpdateInstallState()).resolves.toEqual(
+      createIdleUpdateInstallState()
     );
   });
 
-  it("normalizes download opening errors", async () => {
+  it("delegates install state reads and start requests to the desktop bridge", async () => {
+    const state = {
+      phase: "downloading" as const,
+      version: "0.1.11",
+      progressPercent: 48,
+      transferredBytes: 480,
+      totalBytes: 1_000,
+      bytesPerSecond: 64,
+      message: "正在下载更新..."
+    };
+    const getUpdateInstallStateMock = vi.fn().mockResolvedValue(state);
+    const startUpdateInstallMock = vi.fn().mockResolvedValue(undefined);
+    const unsubscribe = vi.fn();
+    const onUpdateInstallStateMock = vi
+      .fn()
+      .mockImplementation((listener: (next: typeof state) => void) => {
+        listener(state);
+        return unsubscribe;
+      });
+
     window.appManagerDesktop = {
       bootstrapState: vi.fn(),
       listProcesses: vi.fn(),
       listPorts: vi.fn(),
       terminateProcess: vi.fn(),
-      openUpdateDownload: vi.fn().mockRejectedValue("open failed")
+      getUpdateInstallState: getUpdateInstallStateMock,
+      startUpdateInstall: startUpdateInstallMock,
+      onUpdateInstallState: onUpdateInstallStateMock
     };
 
-    await expect(openUpdateDownload("https://example.com/download.dmg")).rejects.toEqual({
+    await expect(getUpdateInstallState()).resolves.toEqual(state);
+    await expect(startUpdateInstall()).resolves.toBeUndefined();
+
+    const listener = vi.fn();
+    const dispose = subscribeToUpdateInstallState(listener);
+
+    expect(getUpdateInstallStateMock).toHaveBeenCalledTimes(1);
+    expect(startUpdateInstallMock).toHaveBeenCalledTimes(1);
+    expect(listener).toHaveBeenCalledWith(state);
+
+    dispose();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+  });
+
+  it("normalizes install start errors", async () => {
+    window.appManagerDesktop = {
+      bootstrapState: vi.fn(),
+      listProcesses: vi.fn(),
+      listPorts: vi.fn(),
+      terminateProcess: vi.fn(),
+      startUpdateInstall: vi.fn().mockRejectedValue("install failed")
+    };
+
+    await expect(startUpdateInstall()).rejects.toEqual({
       code: "update_failed",
-      message: "open failed"
+      message: "install failed"
     });
   });
 

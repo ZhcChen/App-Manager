@@ -9,5 +9,7 @@ export const DESKTOP_CHANNELS = {
   showApplicationContextMenu: "applications:show-context-menu",
   processContextAction: "processes:context-action",
   checkForUpdates: "updates:check",
-  openUpdateDownload: "updates:open-download"
+  getUpdateInstallState: "updates:get-install-state",
+  startUpdateInstall: "updates:start-install",
+  updateInstallStateChanged: "updates:install-state-changed"
 } as const;

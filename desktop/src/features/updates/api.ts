@@ -1,5 +1,10 @@
 import { getDesktopBridge } from "@/lib/desktopBridge";
-import type { UpdateApiError, UpdateCheckResult } from "./types";
+import type {
+  UpdateApiError,
+  UpdateCheckResult,
+  UpdateInstallState
+} from "./types";
+import { createIdleUpdateInstallState } from "./types";
 
 export function createNoUpdateResult(currentVersion: string): UpdateCheckResult {
   return {
@@ -34,18 +39,44 @@ export async function checkForUpdates(
   }
 }
 
-export async function openUpdateDownload(url: string): Promise<void> {
+export async function getUpdateInstallState(): Promise<UpdateInstallState> {
   const bridge = getDesktopBridge();
-  if (!bridge?.openUpdateDownload) {
-    window.open(url, "_blank", "noopener,noreferrer");
-    return;
+  if (!bridge?.getUpdateInstallState) {
+    return createIdleUpdateInstallState();
   }
 
   try {
-    await bridge.openUpdateDownload(url);
+    return await bridge.getUpdateInstallState();
   } catch (error) {
     throw toUpdateApiError(error);
   }
+}
+
+export async function startUpdateInstall(): Promise<void> {
+  const bridge = getDesktopBridge();
+  if (!bridge?.startUpdateInstall) {
+    throw {
+      code: "update_install_unavailable",
+      message: "当前运行环境不支持应用内升级。"
+    } satisfies UpdateApiError;
+  }
+
+  try {
+    await bridge.startUpdateInstall();
+  } catch (error) {
+    throw toUpdateApiError(error);
+  }
+}
+
+export function subscribeToUpdateInstallState(
+  listener: (state: UpdateInstallState) => void
+) {
+  const bridge = getDesktopBridge();
+  if (!bridge?.onUpdateInstallState) {
+    return () => undefined;
+  }
+
+  return bridge.onUpdateInstallState(listener);
 }
 
 export function toUpdateApiError(error: unknown): UpdateApiError {

@@ -1,5 +1,9 @@
-import { useEffect, useState } from "react";
-import type { UpdateCheckResult, UpdatePlatform, UpdateReleaseAsset } from "../types";
+import type {
+  UpdateCheckResult,
+  UpdateInstallPhase,
+  UpdateInstallState,
+  UpdatePlatform
+} from "../types";
 
 type UpdateDialogProps = {
   isOpen: boolean;
@@ -7,12 +11,11 @@ type UpdateDialogProps = {
   result: UpdateCheckResult | null;
   error: string | null;
   isChecking: boolean;
+  installState: UpdateInstallState;
   onClose: () => void;
   onCheckNow: () => void;
-  onOpenDownload: (url: string) => Promise<void> | void;
+  onStartInstall: () => Promise<void> | void;
 };
-
-type UpgradeState = "idle" | "preparing" | "ready" | "failed";
 
 const PLATFORM_LABELS: Record<UpdatePlatform, string> = {
   macos: "macOS",
@@ -20,19 +23,6 @@ const PLATFORM_LABELS: Record<UpdatePlatform, string> = {
   linux: "Linux",
   unknown: "未知平台"
 };
-
-const FORMAT_LABELS: Record<string, string> = {
-  appimage: "AppImage",
-  deb: "DEB",
-  dmg: "DMG",
-  exe: "EXE 安装器",
-  zip: "ZIP"
-};
-
-function formatAssetLabel(asset: UpdateReleaseAsset) {
-  const format = FORMAT_LABELS[asset.format] ?? asset.format.toUpperCase();
-  return `${PLATFORM_LABELS[asset.platform]} ${asset.arch} · ${format}`;
-}
 
 function getDialogTitle(
   result: UpdateCheckResult | null,
@@ -50,20 +40,40 @@ function getDialogTitle(
   return result?.hasUpdate ? "发现新版本" : "当前已是最新版本";
 }
 
-function getUpgradeStatusCopy(upgradeState: UpgradeState) {
-  if (upgradeState === "preparing") {
-    return "正在准备升级文件...";
+function getUpgradeButtonLabel(
+  phase: UpdateInstallPhase,
+  latestVersion: string | null
+) {
+  if (phase === "checking") {
+    return "正在检查...";
   }
 
-  if (upgradeState === "ready") {
-    return "已打开下载页面，请按系统提示完成安装。";
+  if (phase === "downloading") {
+    return "正在下载...";
   }
 
-  if (upgradeState === "failed") {
-    return "升级入口打开失败，请稍后重试。";
+  if (phase === "downloaded" || phase === "installing") {
+    return "正在安装...";
   }
 
-  return "点击升级后，会打开当前系统对应安装包的下载页面。";
+  return `升级到 v${latestVersion ?? ""}`;
+}
+
+function getUpgradeStatusCopy(state: UpdateInstallState) {
+  if (state.message) {
+    return state.message;
+  }
+
+  return "点击升级后，应用会在后台下载更新并自动安装。";
+}
+
+function isUpgradeBusy(phase: UpdateInstallPhase) {
+  return (
+    phase === "checking" ||
+    phase === "downloading" ||
+    phase === "downloaded" ||
+    phase === "installing"
+  );
 }
 
 export function UpdateDialog(props: UpdateDialogProps) {
@@ -73,55 +83,25 @@ export function UpdateDialog(props: UpdateDialogProps) {
     result,
     error,
     isChecking,
+    installState,
     onClose,
     onCheckNow,
-    onOpenDownload
+    onStartInstall
   } = props;
-  const [upgradeState, setUpgradeState] = useState<UpgradeState>("idle");
-  const [upgradeProgress, setUpgradeProgress] = useState(0);
   const currentAssets = result?.currentPlatformAssets ?? [];
-  const primaryAsset = currentAssets[0] ?? null;
+  const hasCurrentPlatformUpdate = currentAssets.length > 0;
   const dialogTitle = getDialogTitle(result, error, isChecking);
-
-  useEffect(() => {
-    setUpgradeState("idle");
-    setUpgradeProgress(0);
-  }, [isOpen, result?.latestTag]);
-
-  useEffect(() => {
-    if (upgradeState !== "preparing") {
-      return undefined;
-    }
-
-    const timer = window.setInterval(() => {
-      setUpgradeProgress((current) => Math.min(current + 12, 88));
-    }, 240);
-
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [upgradeState]);
 
   if (!isOpen) {
     return null;
   }
 
   const handleUpgrade = async () => {
-    if (!primaryAsset || upgradeState === "preparing") {
+    if (!hasCurrentPlatformUpdate || isUpgradeBusy(installState.phase)) {
       return;
     }
 
-    setUpgradeState("preparing");
-    setUpgradeProgress(18);
-
-    try {
-      await Promise.resolve(onOpenDownload(primaryAsset.url));
-      setUpgradeProgress(100);
-      setUpgradeState("ready");
-    } catch {
-      setUpgradeProgress(0);
-      setUpgradeState("failed");
-    }
+    await Promise.resolve(onStartInstall());
   };
 
   return (
@@ -163,37 +143,38 @@ export function UpdateDialog(props: UpdateDialogProps) {
               </strong>
             </div>
 
-            {primaryAsset ? (
+            {hasCurrentPlatformUpdate ? (
               <>
                 <p className="update-upgrade-card__copy">
-                  已匹配安装包：{formatAssetLabel(primaryAsset)}
+                  已匹配当前设备的升级通道，下载完成后会自动开始安装。
                 </p>
                 <button
                   type="button"
                   className="primary-download-button update-upgrade-button"
-                  disabled={upgradeState === "preparing"}
+                  disabled={isUpgradeBusy(installState.phase)}
                   onClick={() => {
                     void handleUpgrade();
                   }}
                 >
-                  {upgradeState === "preparing"
-                    ? "正在升级..."
-                    : `升级到 v${result.latestVersion ?? ""}`}
+                  {getUpgradeButtonLabel(
+                    installState.phase,
+                    result.latestVersion
+                  )}
                 </button>
                 <div className="update-progress-area">
                   <div
                     className={`update-progress-bar ${
-                      upgradeState === "preparing" ? "is-active" : ""
+                      isUpgradeBusy(installState.phase) ? "is-active" : ""
                     }`}
                     role="progressbar"
                     aria-label="升级进度"
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-valuenow={upgradeProgress}
+                    aria-valuenow={installState.progressPercent}
                   >
-                    <span style={{ width: `${upgradeProgress}%` }} />
+                    <span style={{ width: `${installState.progressPercent}%` }} />
                   </div>
-                  <p>{getUpgradeStatusCopy(upgradeState)}</p>
+                  <p>{getUpgradeStatusCopy(installState)}</p>
                 </div>
               </>
             ) : (

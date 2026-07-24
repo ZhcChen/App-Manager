@@ -335,7 +335,7 @@ describe("App", () => {
   });
 
   it("shows an update badge and opens the update dialog", async () => {
-    const openUpdateDownload = vi.fn().mockResolvedValue(undefined);
+    const startUpdateInstall = vi.fn().mockResolvedValue(undefined);
     const updateAsset = {
       name: "App-Manager-0.1.11-mac-arm64.dmg",
       url: "https://github.com/ZhcChen/App-Manager/releases/download/v0.1.11/App-Manager-0.1.11-mac-arm64.dmg",
@@ -355,7 +355,17 @@ describe("App", () => {
       listProcesses: vi.fn().mockResolvedValue(mockProcesses),
       listPorts: vi.fn().mockResolvedValue(mockPorts),
       terminateProcess: vi.fn(),
-      openUpdateDownload,
+      getUpdateInstallState: vi.fn().mockResolvedValue({
+        phase: "idle",
+        version: null,
+        progressPercent: 0,
+        transferredBytes: null,
+        totalBytes: null,
+        bytesPerSecond: null,
+        message: null
+      }),
+      startUpdateInstall,
+      onUpdateInstallState: vi.fn().mockReturnValue(() => undefined),
       checkForUpdates: vi.fn().mockResolvedValue({
         currentVersion: "0.1.10",
         latestVersion: "0.1.11",
@@ -394,11 +404,11 @@ describe("App", () => {
     );
 
     await waitFor(() => {
-      expect(openUpdateDownload).toHaveBeenCalledWith(updateAsset.url);
+      expect(startUpdateInstall).toHaveBeenCalledTimes(1);
     });
   });
 
-  it("shows a toast when opening an update download fails", async () => {
+  it("shows a toast when starting an update install fails", async () => {
     const updateAsset = {
       name: "App-Manager-0.1.11-mac-arm64.dmg",
       url: "https://github.com/ZhcChen/App-Manager/releases/download/v0.1.11/App-Manager-0.1.11-mac-arm64.dmg",
@@ -418,10 +428,20 @@ describe("App", () => {
       listProcesses: vi.fn().mockResolvedValue(mockProcesses),
       listPorts: vi.fn().mockResolvedValue(mockPorts),
       terminateProcess: vi.fn(),
-      openUpdateDownload: vi.fn().mockRejectedValue({
-        code: "open_download_failed",
-        message: "Unable to open browser."
+      getUpdateInstallState: vi.fn().mockResolvedValue({
+        phase: "idle",
+        version: null,
+        progressPercent: 0,
+        transferredBytes: null,
+        totalBytes: null,
+        bytesPerSecond: null,
+        message: null
       }),
+      startUpdateInstall: vi.fn().mockRejectedValue({
+        code: "update_install_failed",
+        message: "Unable to start installer."
+      }),
+      onUpdateInstallState: vi.fn().mockReturnValue(() => undefined),
       checkForUpdates: vi.fn().mockResolvedValue({
         currentVersion: "0.1.10",
         latestVersion: "0.1.11",
@@ -457,7 +477,7 @@ describe("App", () => {
 
     const alert = await screen.findByRole("alert");
 
-    expect(alert).toHaveTextContent("打开下载失败");
-    expect(alert).toHaveTextContent("Unable to open browser.");
+    expect(alert).toHaveTextContent("启动升级失败");
+    expect(alert).toHaveTextContent("Unable to start installer.");
   });
 });

@@ -1,4 +1,9 @@
-import { app, ipcMain, shell } from "electron";
+import { app, BrowserWindow, ipcMain } from "electron";
+import {
+  autoUpdater,
+  type ProgressInfo,
+  type UpdateInfo
+} from "electron-updater";
 import { DESKTOP_CHANNELS } from "./channels.cjs";
 import { commandError, commandOk } from "./result.cjs";
 
@@ -9,6 +14,7 @@ const RELEASE_TAG_URL_PREFIX =
 const RELEASE_DOWNLOAD_URL_PREFIX =
   "/ZhcChen/App-Manager/releases/download/";
 const RELEASE_CHECK_TIMEOUT_MS = 10_000;
+const INSTALL_TRIGGER_DELAY_MS = 800;
 
 type UpdatePlatform = "macos" | "windows" | "linux" | "unknown";
 type UpdateArch = "x64" | "arm64" | "unknown";
@@ -39,6 +45,24 @@ export type UpdateCheckResult = {
   currentPlatformAssets: UpdateReleaseAsset[];
 };
 
+export type UpdateInstallPhase =
+  | "idle"
+  | "checking"
+  | "downloading"
+  | "downloaded"
+  | "installing"
+  | "failed";
+
+export type UpdateInstallState = {
+  phase: UpdateInstallPhase;
+  version: string | null;
+  progressPercent: number;
+  transferredBytes: number | null;
+  totalBytes: number | null;
+  bytesPerSecond: number | null;
+  message: string | null;
+};
+
 type ParsedVersion = {
   major: number;
   minor: number;
@@ -50,6 +74,24 @@ type ReleasePageSnapshot = {
   html: string;
   finalUrl: string;
 };
+
+const DEFAULT_UPDATE_INSTALL_STATE: UpdateInstallState = {
+  phase: "idle",
+  version: null,
+  progressPercent: 0,
+  transferredBytes: null,
+  totalBytes: null,
+  bytesPerSecond: null,
+  message: null
+};
+
+const isDevRuntime =
+  !app.isPackaged || process.env.APP_MANAGER_CHANNEL === "dev";
+
+let currentInstallState: UpdateInstallState = DEFAULT_UPDATE_INSTALL_STATE;
+let updateLifecycleBound = false;
+let installScheduled = false;
+let installInFlight = false;
 
 function normalizeVersion(version: string): string {
   return version.trim().replace(/^v/i, "");
@@ -408,7 +450,178 @@ function formatUpdateErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Failed to check updates.";
 }
 
+function buildInstallState(
+  partial: Partial<UpdateInstallState>
+): UpdateInstallState {
+  return {
+    ...DEFAULT_UPDATE_INSTALL_STATE,
+    ...currentInstallState,
+    ...partial
+  };
+}
+
+function broadcastInstallState() {
+  for (const window of BrowserWindow.getAllWindows()) {
+    if (window.isDestroyed()) {
+      continue;
+    }
+
+    window.webContents.send(
+      DESKTOP_CHANNELS.updateInstallStateChanged,
+      currentInstallState
+    );
+  }
+}
+
+function updateInstallState(partial: Partial<UpdateInstallState>) {
+  currentInstallState = buildInstallState(partial);
+  broadcastInstallState();
+}
+
+function resetInstallFlow() {
+  installScheduled = false;
+  installInFlight = false;
+}
+
+function bindUpdateLifecycle() {
+  if (updateLifecycleBound) {
+    return;
+  }
+
+  updateLifecycleBound = true;
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = false;
+
+  autoUpdater.on("checking-for-update", () => {
+    updateInstallState({
+      phase: "checking",
+      progressPercent: 0,
+      transferredBytes: null,
+      totalBytes: null,
+      bytesPerSecond: null,
+      message: "正在检查可用更新..."
+    });
+  });
+
+  autoUpdater.on("update-available", (info: UpdateInfo) => {
+    updateInstallState({
+      phase: "downloading",
+      version: info.version,
+      progressPercent: 0,
+      transferredBytes: 0,
+      totalBytes: null,
+      bytesPerSecond: null,
+      message: "已发现新版本，正在开始下载..."
+    });
+  });
+
+  autoUpdater.on("download-progress", (info: ProgressInfo) => {
+    updateInstallState({
+      phase: "downloading",
+      progressPercent: Math.max(0, Math.min(100, Math.round(info.percent))),
+      transferredBytes: info.transferred,
+      totalBytes: info.total,
+      bytesPerSecond: info.bytesPerSecond,
+      message: "正在下载更新..."
+    });
+  });
+
+  autoUpdater.on("update-downloaded", (info: UpdateInfo) => {
+    updateInstallState({
+      phase: "downloaded",
+      version: info.version,
+      progressPercent: 100,
+      message: "更新已下载完成，正在准备安装..."
+    });
+
+    if (installScheduled) {
+      return;
+    }
+
+    installScheduled = true;
+    updateInstallState({
+      phase: "installing",
+      progressPercent: 100,
+      message: "正在启动安装程序，应用即将退出..."
+    });
+
+    setTimeout(() => {
+      try {
+        autoUpdater.quitAndInstall();
+      } catch (error) {
+        resetInstallFlow();
+        updateInstallState({
+          phase: "failed",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Failed to launch installer."
+        });
+      }
+    }, INSTALL_TRIGGER_DELAY_MS);
+  });
+
+  autoUpdater.on("update-not-available", () => {
+    resetInstallFlow();
+    updateInstallState({
+      phase: "failed",
+      progressPercent: 0,
+      message: "当前已经是最新版本。"
+    });
+  });
+
+  autoUpdater.on("error", (error: Error) => {
+    resetInstallFlow();
+    updateInstallState({
+      phase: "failed",
+      progressPercent: 0,
+      message: error.message || "更新失败。"
+    });
+  });
+}
+
+function ensureUpdateInstallSupported() {
+  if (isDevRuntime) {
+    throw new Error("Dev 环境不支持应用内升级安装。");
+  }
+}
+
+export async function startUpdateInstall() {
+  ensureUpdateInstallSupported();
+  bindUpdateLifecycle();
+
+  if (installInFlight) {
+    return;
+  }
+
+  installInFlight = true;
+
+  try {
+    const result = await autoUpdater.checkForUpdates();
+
+    if (!result?.isUpdateAvailable) {
+      throw new Error("当前已经是最新版本。");
+    }
+
+    await autoUpdater.downloadUpdate();
+  } catch (error) {
+    resetInstallFlow();
+    updateInstallState({
+      phase: "failed",
+      progressPercent: 0,
+      message: error instanceof Error ? error.message : "升级启动失败。"
+    });
+    throw error;
+  }
+}
+
+export function getUpdateInstallState(): UpdateInstallState {
+  return currentInstallState;
+}
+
 export function registerUpdateHandlers() {
+  bindUpdateLifecycle();
+
   ipcMain.handle(DESKTOP_CHANNELS.checkForUpdates, async () => {
     try {
       return commandOk(await checkForUpdates());
@@ -420,22 +633,19 @@ export function registerUpdateHandlers() {
     }
   });
 
-  ipcMain.handle(DESKTOP_CHANNELS.openUpdateDownload, async (_event, url: string) => {
-    if (typeof url !== "string" || !isAllowedDownloadUrl(url)) {
-      return commandError({
-        code: "invalid_download_url",
-        message: "The update download URL is not allowed."
-      });
-    }
+  ipcMain.handle(DESKTOP_CHANNELS.getUpdateInstallState, async () => {
+    return commandOk(getUpdateInstallState());
+  });
 
+  ipcMain.handle(DESKTOP_CHANNELS.startUpdateInstall, async () => {
     try {
-      await shell.openExternal(url);
+      await startUpdateInstall();
       return commandOk(null);
     } catch (error) {
       return commandError({
-        code: "open_download_failed",
+        code: "update_install_failed",
         message:
-          error instanceof Error ? error.message : "Failed to open download URL."
+          error instanceof Error ? error.message : "Failed to start update install."
       });
     }
   });

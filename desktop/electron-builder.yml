@@ -2,6 +2,10 @@ appId: com.zhcchen.app-manager
 productName: App Manager
 asar: true
 artifactName: App-Manager-${version}-${os}-${arch}.${ext}
+publish:
+  provider: github
+  owner: ZhcChen
+  repo: App-Manager
 
 directories:
   output: release

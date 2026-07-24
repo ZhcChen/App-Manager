@@ -39,3 +39,33 @@ export type UpdateApiError = {
 };
 
 export type UpdateCheckReason = "initial" | "interval" | "focus" | "manual";
+
+export type UpdateInstallPhase =
+  | "idle"
+  | "checking"
+  | "downloading"
+  | "downloaded"
+  | "installing"
+  | "failed";
+
+export type UpdateInstallState = {
+  phase: UpdateInstallPhase;
+  version: string | null;
+  progressPercent: number;
+  transferredBytes: number | null;
+  totalBytes: number | null;
+  bytesPerSecond: number | null;
+  message: string | null;
+};
+
+export function createIdleUpdateInstallState(): UpdateInstallState {
+  return {
+    phase: "idle",
+    version: null,
+    progressPercent: 0,
+    transferredBytes: null,
+    totalBytes: null,
+    bytesPerSecond: null,
+    message: null
+  };
+}

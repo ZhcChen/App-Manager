@@ -22,14 +22,13 @@ const releaseBaseUrl = `https://github.com/${githubRepository}/releases/download
 
 const platformOrder = ["macOS", "Windows", "Linux"];
 const archOrder = ["arm64", "x64"];
-const formatOrder = ["dmg", "exe", "appimage", "deb", "zip"];
+const formatOrder = ["dmg", "exe", "appimage", "deb"];
 
 const formatLabels = {
   appimage: "AppImage",
   deb: "DEB",
   dmg: "DMG",
   exe: "EXE 安装器",
-  zip: "ZIP"
 };
 
 function detectPlatform(fileName) {
@@ -83,10 +82,6 @@ function detectFormat(fileName) {
 
   if (fileName.endsWith(".exe")) {
     return "exe";
-  }
-
-  if (fileName.endsWith(".zip")) {
-    return "zip";
   }
 
   return null;

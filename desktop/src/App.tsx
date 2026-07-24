@@ -32,8 +32,9 @@ import {
 } from "./features/processes/components/TerminateDialog";
 import { PortList } from "./features/ports/components/PortList";
 import { UpdateDialog } from "./features/updates/components/UpdateDialog";
-import { openUpdateDownload, toUpdateApiError } from "./features/updates/api";
+import { toUpdateApiError } from "./features/updates/api";
 import { useUpdateCheck } from "./features/updates/useUpdateCheck";
+import { useUpdateInstall } from "./features/updates/useUpdateInstall";
 import {
   AUTO_REFRESH_INTERVAL_MS,
   AUTO_REFRESH_INTERVAL_OPTIONS_MS,
@@ -241,6 +242,7 @@ export function App() {
   const processes = useProcesses(autoRefreshIntervalMs);
   const ports = usePorts(autoRefreshIntervalMs);
   const updates = useUpdateCheck(bootstrapState.appVersion);
+  const updateInstall = useUpdateInstall();
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -873,16 +875,16 @@ export function App() {
         result={updates.result}
         error={updates.error}
         isChecking={updates.isChecking}
+        installState={updateInstall.state}
         onClose={() => setUpdateDialogOpen(false)}
         onCheckNow={() => {
           void updates.check("manual");
         }}
-        onOpenDownload={async (url) => {
+        onStartInstall={async () => {
           try {
-            await openUpdateDownload(url);
+            await updateInstall.start();
           } catch (cause) {
-            pushUpdateFeedback("打开下载失败", toUpdateApiError(cause).message);
-            throw cause;
+            pushUpdateFeedback("启动升级失败", toUpdateApiError(cause).message);
           }
         }}
       />

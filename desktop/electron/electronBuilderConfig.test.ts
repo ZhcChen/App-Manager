@@ -18,6 +18,12 @@ function expectConfiguredAssetExists(relativePath: string) {
 }
 
 describe("electron-builder branding config", () => {
+  it("publishes update metadata against the GitHub release provider", () => {
+    expect(normalizedConfigText).toMatch(
+      /publish:\n  provider: github\n  owner: ZhcChen\n  repo: App-Manager/
+    );
+  });
+
   it("does not define a top-level icon that can override mac.icon", () => {
     expect(normalizedConfigText).not.toMatch(/^icon:/m);
   });

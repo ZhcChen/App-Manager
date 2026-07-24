@@ -2,7 +2,10 @@ import { contextBridge, ipcRenderer } from "electron";
 import type { ElectronBootstrapState } from "./ipc/bootstrapState.cjs";
 import { DESKTOP_CHANNELS } from "./ipc/channels.cjs";
 import type { DesktopCommandResult } from "./ipc/result.cjs";
-import type { UpdateCheckResult } from "./ipc/updates.cjs";
+import type {
+  UpdateCheckResult,
+  UpdateInstallState
+} from "./ipc/updates.cjs";
 
 type ProcessItem = {
   pid: number;
@@ -179,11 +182,29 @@ contextBridge.exposeInMainWorld("appManagerDesktop", {
       DESKTOP_CHANNELS.checkForUpdates
     );
   },
-  openUpdateDownload(url: string) {
+  getUpdateInstallState() {
+    return invokeDesktopChannel<UpdateInstallState>(
+      DESKTOP_CHANNELS.getUpdateInstallState
+    );
+  },
+  startUpdateInstall() {
     return invokeDesktopChannel<null>(
-      DESKTOP_CHANNELS.openUpdateDownload,
-      url
+      DESKTOP_CHANNELS.startUpdateInstall
     ).then(() => undefined);
+  },
+  onUpdateInstallState(listener: (state: UpdateInstallState) => void) {
+    const handleState = (_event: unknown, state: UpdateInstallState) => {
+      listener(state);
+    };
+
+    ipcRenderer.on(DESKTOP_CHANNELS.updateInstallStateChanged, handleState);
+
+    return () => {
+      ipcRenderer.off(
+        DESKTOP_CHANNELS.updateInstallStateChanged,
+        handleState
+      );
+    };
   },
   showProcessContextMenu(
     item: ProcessContextMenuItem,
