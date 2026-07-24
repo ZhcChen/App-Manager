@@ -672,6 +672,10 @@ async function openManualInstaller(assetPath: string) {
   }
 }
 
+function quitCurrentAppAfterManualInstallerOpened() {
+  app.quit();
+}
+
 async function startManualMacUpdateInstall(initialMessage: string) {
   updateInstallState({
     phase: "checking",
@@ -720,9 +724,10 @@ async function startManualMacUpdateInstall(initialMessage: string) {
     phase: "installing",
     version: result.latestVersion,
     progressPercent: 100,
-    message:
-      "安装器已打开，请完成覆盖安装；安装完成后重新打开应用即可进入新版本。"
+    message: "安装器已打开，当前应用将立即退出，请完成覆盖安装。"
   });
+
+  quitCurrentAppAfterManualInstallerOpened();
 }
 
 function shouldFallbackToManualMacInstaller(error: unknown) {

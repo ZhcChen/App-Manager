@@ -66,6 +66,7 @@ const {
     appMock: {
       getVersion: vi.fn(() => "0.1.10"),
       getPath: vi.fn(() => mockedDownloadsDir),
+      quit: vi.fn(),
       isPackaged: true
     },
     browserWindowMock: {
@@ -191,6 +192,7 @@ describe("update IPC helpers", () => {
     vi.resetModules();
     vi.mocked(appMock.getVersion).mockReturnValue("0.1.10");
     vi.mocked(appMock.getPath).mockReturnValue(mockedDownloadsDir);
+    vi.mocked(appMock.quit).mockReset();
     appMock.isPackaged = true;
     vi.mocked(browserWindowMock.getAllWindows).mockImplementation(() => [
       {
@@ -503,13 +505,14 @@ describe("update IPC helpers", () => {
       recursive: true
     });
     expect(shellMock.openPath).toHaveBeenCalledWith(installerPath);
+    expect(appMock.quit).toHaveBeenCalledTimes(1);
     expect(sendMock).toHaveBeenLastCalledWith(
       DESKTOP_CHANNELS.updateInstallStateChanged,
       expect.objectContaining({
         phase: "installing",
         version: "0.1.11",
         progressPercent: 100,
-        message: expect.stringContaining("安装器已打开")
+        message: expect.stringContaining("当前应用将立即退出")
       })
     );
   });
@@ -566,6 +569,7 @@ describe("update IPC helpers", () => {
 
     await vi.waitFor(() => {
       expect(shellMock.openPath).toHaveBeenCalledWith(installerPath);
+      expect(appMock.quit).toHaveBeenCalledTimes(1);
     });
   });
 });
