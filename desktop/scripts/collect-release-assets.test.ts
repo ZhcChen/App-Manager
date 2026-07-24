@@ -147,4 +147,64 @@ sha512: arm64zip
 
     expect(await readFile(path.join(targetDir, fileName), "utf8")).toBe("same-binary");
   });
+
+  it("normalizes Linux deb asset names using the artifact directory architecture", async () => {
+    const sourceDir = await createTempDir();
+    const targetDir = path.join(sourceDir, "out");
+    const debName = `App-Manager-${version}-linux-amd64.deb`;
+
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-linux-x64-assets/${debName}`,
+      "linux-x64-binary"
+    );
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-linux-arm64-assets/${debName}`,
+      "linux-arm64-binary"
+    );
+
+    runCollector(sourceDir, targetDir);
+
+    expect(
+      await readFile(path.join(targetDir, `App-Manager-${version}-linux-amd64.deb`), "utf8")
+    ).toBe("linux-x64-binary");
+    expect(
+      await readFile(path.join(targetDir, `App-Manager-${version}-linux-arm64.deb`), "utf8")
+    ).toBe("linux-arm64-binary");
+  });
+
+  it("rewrites Linux arm64 metadata that references a misnamed amd64 deb asset", async () => {
+    const sourceDir = await createTempDir();
+    const targetDir = path.join(sourceDir, "out");
+
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-linux-arm64-assets/App-Manager-${version}-linux-amd64.deb`,
+      "linux-arm64-binary"
+    );
+    await writeFixtureFile(
+      sourceDir,
+      "desktop-linux-arm64-assets/latest-linux-arm64.yml",
+      `version: ${version}
+files:
+  - url: App-Manager-${version}-linux-amd64.deb
+    sha512: arm64deb
+path: App-Manager-${version}-linux-amd64.deb
+sha512: arm64deb
+`
+    );
+
+    runCollector(sourceDir, targetDir);
+
+    const output = parse(await readFile(path.join(targetDir, "latest-linux-arm64.yml"), "utf8"));
+    expect(output.path).toBe(`App-Manager-${version}-linux-arm64.deb`);
+    expect(output.sha512).toBe("arm64deb");
+    expect(output.files).toEqual([
+      {
+        url: `App-Manager-${version}-linux-arm64.deb`,
+        sha512: "arm64deb"
+      }
+    ]);
+  });
 });

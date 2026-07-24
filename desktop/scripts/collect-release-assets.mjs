@@ -30,6 +30,7 @@ const supportedInstallerExtensions = new Set([
   ".exe",
   ".zip"
 ]);
+const artifactContextPattern = /^desktop-(macos|windows|linux)-(x64|arm64|arm)-assets$/;
 
 function isInstallerAssetName(fileName) {
   const normalizedName = fileName.toLowerCase();
@@ -71,6 +72,50 @@ function isReleaseArtifactName(fileName) {
   }
 
   return isUpdateMetadataName(fileName);
+}
+
+function getSourceArtifactContext(sourcePath) {
+  for (const segment of path.resolve(sourcePath).split(path.sep)) {
+    const match = segment.match(artifactContextPattern);
+
+    if (match) {
+      return {
+        platform: match[1],
+        arch: match[2]
+      };
+    }
+  }
+
+  return null;
+}
+
+function getExpectedLinuxDebArch(artifactArch) {
+  if (artifactArch === "x64") {
+    return "amd64";
+  }
+
+  if (artifactArch === "arm64") {
+    return "arm64";
+  }
+
+  return null;
+}
+
+function normalizeReleaseAssetName(fileName, sourcePath) {
+  const context = getSourceArtifactContext(sourcePath);
+
+  if (!context || context.platform !== "linux" || path.extname(fileName).toLowerCase() !== ".deb") {
+    return fileName;
+  }
+
+  const expectedArch = getExpectedLinuxDebArch(context.arch);
+  const match = fileName.match(/^(.*-linux-)([^.]+)(\.deb)$/i);
+
+  if (!expectedArch || !match) {
+    return fileName;
+  }
+
+  return `${match[1]}${expectedArch}${match[3]}`;
 }
 
 async function collectAssetFiles(rootDir) {
@@ -124,6 +169,74 @@ function isValidMetadataDocument(document) {
   return Boolean(document) && typeof document === "object" && !Array.isArray(document);
 }
 
+function normalizeMetadataFileEntry(file, sourceFile) {
+  if (!file || typeof file !== "object" || Array.isArray(file)) {
+    return file;
+  }
+
+  const nextFile = { ...file };
+
+  if (typeof nextFile.url === "string") {
+    nextFile.url = normalizeReleaseAssetName(nextFile.url, sourceFile);
+  }
+
+  if (typeof nextFile.path === "string") {
+    nextFile.path = normalizeReleaseAssetName(nextFile.path, sourceFile);
+  }
+
+  return nextFile;
+}
+
+function normalizeMetadataPackages(packages, sourceFile) {
+  if (!packages || typeof packages !== "object" || Array.isArray(packages)) {
+    return packages;
+  }
+
+  return Object.fromEntries(
+    Object.entries(packages).map(([key, value]) => {
+      if (!value || typeof value !== "object" || Array.isArray(value)) {
+        return [key, value];
+      }
+
+      const nextValue = { ...value };
+
+      if (typeof nextValue.path === "string") {
+        nextValue.path = normalizeReleaseAssetName(nextValue.path, sourceFile);
+      }
+
+      if (typeof nextValue.url === "string") {
+        nextValue.url = normalizeReleaseAssetName(nextValue.url, sourceFile);
+      }
+
+      return [key, nextValue];
+    })
+  );
+}
+
+function normalizeMetadataDocument(document, sourceFile) {
+  if (!isValidMetadataDocument(document)) {
+    return document;
+  }
+
+  const nextDocument = { ...document };
+
+  if (Array.isArray(document.files)) {
+    nextDocument.files = document.files.map((file) =>
+      normalizeMetadataFileEntry(file, sourceFile)
+    );
+  }
+
+  if (typeof document.path === "string") {
+    nextDocument.path = normalizeReleaseAssetName(document.path, sourceFile);
+  }
+
+  if (document.packages && typeof document.packages === "object" && !Array.isArray(document.packages)) {
+    nextDocument.packages = normalizeMetadataPackages(document.packages, sourceFile);
+  }
+
+  return nextDocument;
+}
+
 function pickPrimaryFileForMetadata(fileName, files, documents) {
   const preferredExtensions = getPreferredMetadataExtensions(fileName);
   const fileByUrl = new Map(files.map((file) => [String(file.url), file]));
@@ -174,7 +287,10 @@ async function mergeUpdateMetadataFiles(fileName, sourceFiles, targetPath) {
   const rawDocuments = await Promise.all(
     sourceFiles.map(async (sourceFile) => {
       try {
-        const document = parse(await readFile(sourceFile, "utf8"));
+        const document = normalizeMetadataDocument(
+          parse(await readFile(sourceFile, "utf8")),
+          sourceFile
+        );
 
         return {
           sourceFile,
@@ -281,7 +397,7 @@ async function main() {
   const filesByName = new Map();
 
   for (const assetFile of assetFiles) {
-    const name = path.basename(assetFile);
+    const name = normalizeReleaseAssetName(path.basename(assetFile), assetFile);
     const group = filesByName.get(name) ?? [];
     group.push(assetFile);
     filesByName.set(name, group);
@@ -290,13 +406,13 @@ async function main() {
   for (const [fileName, sourceFiles] of filesByName) {
     const targetPath = path.join(targetDir, fileName);
 
-    if (sourceFiles.length === 1) {
-      await copyFile(sourceFiles[0], targetPath);
+    if (isUpdateMetadataName(fileName)) {
+      await mergeUpdateMetadataFiles(fileName, sourceFiles, targetPath);
       continue;
     }
 
-    if (isUpdateMetadataName(fileName)) {
-      await mergeUpdateMetadataFiles(fileName, sourceFiles, targetPath);
+    if (sourceFiles.length === 1) {
+      await copyFile(sourceFiles[0], targetPath);
       continue;
     }
 
