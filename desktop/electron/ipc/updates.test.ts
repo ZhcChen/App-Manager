@@ -138,6 +138,36 @@ const releasePageHtml = `
   </html>
 `;
 
+const originalPlatformDescriptor = Object.getOwnPropertyDescriptor(
+  process,
+  "platform"
+);
+const originalArchDescriptor = Object.getOwnPropertyDescriptor(process, "arch");
+
+function mockRuntimePlatform(
+  platform: NodeJS.Platform,
+  arch: NodeJS.Architecture
+) {
+  Object.defineProperty(process, "platform", {
+    configurable: true,
+    value: platform
+  });
+  Object.defineProperty(process, "arch", {
+    configurable: true,
+    value: arch
+  });
+}
+
+function restoreRuntimePlatform() {
+  if (originalPlatformDescriptor) {
+    Object.defineProperty(process, "platform", originalPlatformDescriptor);
+  }
+
+  if (originalArchDescriptor) {
+    Object.defineProperty(process, "arch", originalArchDescriptor);
+  }
+}
+
 function getRegisteredHandler(channel: string) {
   const match = vi
     .mocked(ipcMainMock.handle)
@@ -194,6 +224,7 @@ describe("update IPC helpers", () => {
   afterEach(() => {
     vi.useRealTimers();
     vi.unstubAllGlobals();
+    restoreRuntimePlatform();
   });
 
   it("compares stable releases above prerelease builds", async () => {
@@ -417,6 +448,7 @@ describe("update IPC helpers", () => {
   });
 
   it("downloads and opens the installer on macOS when only ad-hoc signing is available", async () => {
+    mockRuntimePlatform("darwin", "arm64");
     execFileMock.mockImplementation(
       (
         _command: string,
@@ -474,6 +506,7 @@ describe("update IPC helpers", () => {
   });
 
   it("falls back to the installer flow after a macOS code-sign validation error", async () => {
+    mockRuntimePlatform("darwin", "arm64");
     vi.stubGlobal(
       "fetch",
       vi
