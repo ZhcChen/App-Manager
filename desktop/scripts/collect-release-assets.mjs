@@ -173,21 +173,35 @@ function mergePackagesMap(documents) {
 async function mergeUpdateMetadataFiles(fileName, sourceFiles, targetPath) {
   const rawDocuments = await Promise.all(
     sourceFiles.map(async (sourceFile) => {
-      return {
-        sourceFile,
-        document: parse(await readFile(sourceFile, "utf8"))
-      };
+      try {
+        const document = parse(await readFile(sourceFile, "utf8"));
+
+        return {
+          sourceFile,
+          document,
+          parseError: null
+        };
+      } catch (error) {
+        return {
+          sourceFile,
+          document: null,
+          parseError:
+            error instanceof Error ? error.message : "Unknown metadata parse failure."
+        };
+      }
     })
   );
   const validDocuments = rawDocuments.filter(({ document }) => isValidMetadataDocument(document));
   const invalidDocuments = rawDocuments.filter(({ document }) => !isValidMetadataDocument(document));
 
   if (invalidDocuments.length > 0) {
-    console.warn(
-      `Skipped invalid update metadata for ${fileName}: ${invalidDocuments
-        .map(({ sourceFile }) => sourceFile)
-        .join(", ")}`
-    );
+    const invalidSummary = invalidDocuments
+      .map(({ sourceFile, parseError }) =>
+        parseError ? `${sourceFile} (${parseError})` : sourceFile
+      )
+      .join(", ");
+
+    console.warn(`Skipped invalid update metadata for ${fileName}: ${invalidSummary}`);
   }
 
   const [firstDocumentEntry, ...otherDocumentEntries] = validDocuments;
@@ -252,52 +266,62 @@ async function areFilesIdentical(filePaths) {
   return new Set(hashes).size <= 1;
 }
 
-const sourceDir = path.resolve(process.argv[2] ?? defaultSourceDir);
-const targetDir = path.resolve(process.argv[3] ?? defaultTargetDir);
-const assetFiles = await collectAssetFiles(sourceDir);
+async function main() {
+  const sourceDir = path.resolve(process.argv[2] ?? defaultSourceDir);
+  const targetDir = path.resolve(process.argv[3] ?? defaultTargetDir);
+  const assetFiles = await collectAssetFiles(sourceDir);
 
-if (!assetFiles.length) {
-  throw new Error(`No release assets found in ${sourceDir}.`);
-}
-
-await rm(targetDir, { recursive: true, force: true });
-await mkdir(targetDir, { recursive: true });
-
-const filesByName = new Map();
-
-for (const assetFile of assetFiles) {
-  const name = path.basename(assetFile);
-  const group = filesByName.get(name) ?? [];
-  group.push(assetFile);
-  filesByName.set(name, group);
-}
-
-for (const [fileName, sourceFiles] of filesByName) {
-  const targetPath = path.join(targetDir, fileName);
-
-  if (sourceFiles.length === 1) {
-    await copyFile(sourceFiles[0], targetPath);
-    continue;
+  if (!assetFiles.length) {
+    throw new Error(`No release assets found in ${sourceDir}.`);
   }
 
-  if (isUpdateMetadataName(fileName)) {
-    await mergeUpdateMetadataFiles(fileName, sourceFiles, targetPath);
-    continue;
+  await rm(targetDir, { recursive: true, force: true });
+  await mkdir(targetDir, { recursive: true });
+
+  const filesByName = new Map();
+
+  for (const assetFile of assetFiles) {
+    const name = path.basename(assetFile);
+    const group = filesByName.get(name) ?? [];
+    group.push(assetFile);
+    filesByName.set(name, group);
   }
 
-  if (await areFilesIdentical(sourceFiles)) {
-    console.warn(
-      `Deduplicated identical release asset ${fileName} from ${sourceFiles.join(", ")}.`
+  for (const [fileName, sourceFiles] of filesByName) {
+    const targetPath = path.join(targetDir, fileName);
+
+    if (sourceFiles.length === 1) {
+      await copyFile(sourceFiles[0], targetPath);
+      continue;
+    }
+
+    if (isUpdateMetadataName(fileName)) {
+      await mergeUpdateMetadataFiles(fileName, sourceFiles, targetPath);
+      continue;
+    }
+
+    if (await areFilesIdentical(sourceFiles)) {
+      console.warn(
+        `Deduplicated identical release asset ${fileName} from ${sourceFiles.join(", ")}.`
+      );
+      await copyFile(sourceFiles[0], targetPath);
+      continue;
+    }
+
+    throw new Error(
+      `Duplicate release asset ${fileName} detected. Sources: ${sourceFiles.join(", ")}.`
     );
-    await copyFile(sourceFiles[0], targetPath);
-    continue;
   }
 
-  throw new Error(
-    `Duplicate release asset ${fileName} detected in ${sourceDir}; only update metadata files may be merged.`
+  console.log(
+    `Collected ${assetFiles.length} release artifacts into ${targetDir} (${filesByName.size} published files).`
   );
 }
 
-console.log(
-  `Collected ${assetFiles.length} release artifacts into ${targetDir} (${filesByName.size} published files).`
-);
+try {
+  await main();
+} catch (error) {
+  const message = error instanceof Error ? error.message : String(error);
+  console.error(`::error title=collect-release-assets::${message}`);
+  throw error;
+}

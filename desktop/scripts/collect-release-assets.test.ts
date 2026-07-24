@@ -111,6 +111,30 @@ sha512: winx64
     ]);
   });
 
+  it("skips metadata documents that fail YAML parsing when a valid duplicate exists", async () => {
+    const sourceDir = await createTempDir();
+    const targetDir = path.join(sourceDir, "out");
+
+    await writeFixtureFile(sourceDir, "mac-a/latest-mac.yml", "version: [unterminated");
+    await writeFixtureFile(
+      sourceDir,
+      "mac-b/latest-mac.yml",
+      `version: ${version}
+files:
+  - url: App-Manager-${version}-mac-arm64.zip
+    sha512: arm64zip
+path: App-Manager-${version}-mac-arm64.zip
+sha512: arm64zip
+`
+    );
+
+    runCollector(sourceDir, targetDir);
+
+    const output = parse(await readFile(path.join(targetDir, "latest-mac.yml"), "utf8"));
+    expect(output.path).toBe(`App-Manager-${version}-mac-arm64.zip`);
+    expect(output.sha512).toBe("arm64zip");
+  });
+
   it("deduplicates identical non-metadata assets copied from multiple artifacts", async () => {
     const sourceDir = await createTempDir();
     const targetDir = path.join(sourceDir, "out");
