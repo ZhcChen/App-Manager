@@ -163,7 +163,41 @@ function normalizeReleaseAssetName(fileName, sourcePath) {
   return `${match[1]}${expectedArch}${match[3]}${suffix}`;
 }
 
-function pruneNormalizedAliasSources(fileName, sourceFiles) {
+function getPreferredNormalizedAliasNames(fileName, artifactArch) {
+  const { baseName, suffix } = splitBlockmapSuffix(fileName);
+  const match = baseName.match(/^(.*-linux-)([^.]+)(\.[^.]+)$/i);
+
+  if (!match) {
+    return [];
+  }
+
+  const extension = match[3].toLowerCase();
+  const aliases = [];
+
+  if (extension === ".appimage") {
+    if (artifactArch === "x64") {
+      aliases.push(`${match[1]}x86_64${match[3]}${suffix}`);
+    }
+
+    if (artifactArch === "arm64") {
+      aliases.push(`${match[1]}aarch64${match[3]}${suffix}`);
+    }
+  }
+
+  if (extension === ".deb") {
+    if (artifactArch === "x64") {
+      aliases.push(`${match[1]}x64${match[3]}${suffix}`);
+    }
+
+    if (artifactArch === "arm64") {
+      aliases.push(`${match[1]}aarch64${match[3]}${suffix}`);
+    }
+  }
+
+  return aliases;
+}
+
+async function pruneNormalizedAliasSources(fileName, sourceFiles) {
   const filesByArtifactRoot = new Map();
   const passthroughFiles = [];
 
@@ -188,9 +222,8 @@ function pruneNormalizedAliasSources(fileName, sourceFiles) {
       continue;
     }
 
-    const canonicalFiles = artifactFiles.filter(
-      (sourceFile) => path.basename(sourceFile) === fileName
-    );
+    const artifactContext = getSourceArtifactContext(artifactFiles[0]);
+    const canonicalFiles = artifactFiles.filter((sourceFile) => path.basename(sourceFile) === fileName);
 
     if (canonicalFiles.length === 1) {
       const droppedFiles = artifactFiles.filter((sourceFile) => sourceFile !== canonicalFiles[0]);
@@ -198,6 +231,32 @@ function pruneNormalizedAliasSources(fileName, sourceFiles) {
         `Ignored normalized alias release assets for ${fileName} from ${artifactRoot}: ${droppedFiles.join(", ")}.`
       );
       prunedFiles.push(canonicalFiles[0]);
+      continue;
+    }
+
+    const preferredAliases = artifactContext
+      ? getPreferredNormalizedAliasNames(fileName, artifactContext.arch)
+      : [];
+    const preferredAliasFile = preferredAliases
+      .map((aliasName) =>
+        artifactFiles.find((sourceFile) => path.basename(sourceFile) === aliasName) ?? null
+      )
+      .find(Boolean);
+
+    if (preferredAliasFile) {
+      const droppedFiles = artifactFiles.filter((sourceFile) => sourceFile !== preferredAliasFile);
+      console.warn(
+        `Ignored lower-priority normalized alias release assets for ${fileName} from ${artifactRoot}: ${droppedFiles.join(", ")}.`
+      );
+      prunedFiles.push(preferredAliasFile);
+      continue;
+    }
+
+    if (await areFilesIdentical(artifactFiles)) {
+      console.warn(
+        `Deduplicated normalized alias release asset ${fileName} from ${artifactRoot}: ${artifactFiles.join(", ")}.`
+      );
+      prunedFiles.push(artifactFiles[0]);
       continue;
     }
 
@@ -493,7 +552,7 @@ async function main() {
   }
 
   for (const [fileName, sourceFiles] of filesByName) {
-    const normalizedSourceFiles = pruneNormalizedAliasSources(fileName, sourceFiles);
+    const normalizedSourceFiles = await pruneNormalizedAliasSources(fileName, sourceFiles);
     const targetPath = path.join(targetDir, fileName);
 
     if (isUpdateMetadataName(fileName)) {

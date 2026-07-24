@@ -312,4 +312,42 @@ sha512: x64appimage
       }
     ]);
   });
+
+  it("prefers the x86_64 AppImage alias over a wrong arm64 alias inside the x64 artifact", async () => {
+    const sourceDir = await createTempDir();
+    const targetDir = path.join(sourceDir, "out");
+
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-linux-x64-assets/App-Manager-${version}-linux-arm64.AppImage`,
+      "wrong-arm64-appimage"
+    );
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-linux-x64-assets/App-Manager-${version}-linux-x86_64.AppImage`,
+      "preferred-x86_64-appimage"
+    );
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-linux-x64-assets/App-Manager-${version}-linux-arm64.AppImage.blockmap`,
+      "wrong-arm64-blockmap"
+    );
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-linux-x64-assets/App-Manager-${version}-linux-x86_64.AppImage.blockmap`,
+      "preferred-x86_64-blockmap"
+    );
+
+    runCollector(sourceDir, targetDir);
+
+    expect(
+      await readFile(path.join(targetDir, `App-Manager-${version}-linux-x64.AppImage`), "utf8")
+    ).toBe("preferred-x86_64-appimage");
+    expect(
+      await readFile(
+        path.join(targetDir, `App-Manager-${version}-linux-x64.AppImage.blockmap`),
+        "utf8"
+      )
+    ).toBe("preferred-x86_64-blockmap");
+  });
 });
