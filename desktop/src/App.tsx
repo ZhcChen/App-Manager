@@ -588,13 +588,16 @@ export function App() {
         onCheckNow={() => {
           void updates.check("manual");
         }}
-        onOpenDownload={(url) => {
-          void openUpdateDownload(url).catch((cause) => {
+        onOpenDownload={async (url) => {
+          try {
+            await openUpdateDownload(url);
+          } catch (cause) {
             pushUpdateFeedback(
               "打开下载失败",
               toUpdateApiError(cause).message
             );
-          });
+            throw cause;
+          }
         }}
       />
 

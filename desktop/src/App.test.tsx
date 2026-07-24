@@ -356,10 +356,10 @@ describe("App", () => {
 
     expect(dialog).toHaveTextContent("v0.1.10");
     expect(dialog).toHaveTextContent("v0.1.11");
-    expect(dialog).toHaveTextContent("macOS arm64 · DMG");
+    expect(dialog).toHaveTextContent("macOS arm64");
 
     fireEvent.click(
-      within(dialog).getByRole("button", { name: "macOS arm64 · DMG" })
+      within(dialog).getByRole("button", { name: "升级到 v0.1.11" })
     );
 
     await waitFor(() => {
@@ -421,7 +421,7 @@ describe("App", () => {
     });
 
     fireEvent.click(
-      within(dialog).getByRole("button", { name: "macOS arm64 · DMG" })
+      within(dialog).getByRole("button", { name: "升级到 v0.1.11" })
     );
 
     const alert = await screen.findByRole("alert");

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type { UpdateCheckResult, UpdatePlatform, UpdateReleaseAsset } from "../types";
 
 type UpdateDialogProps = {
@@ -7,8 +8,10 @@ type UpdateDialogProps = {
   isChecking: boolean;
   onClose: () => void;
   onCheckNow: () => void;
-  onOpenDownload: (url: string) => void;
+  onOpenDownload: (url: string) => Promise<void> | void;
 };
+
+type UpgradeState = "idle" | "preparing" | "ready" | "failed";
 
 const PLATFORM_LABELS: Record<UpdatePlatform, string> = {
   macos: "macOS",
@@ -30,15 +33,6 @@ function formatAssetLabel(asset: UpdateReleaseAsset) {
   return `${PLATFORM_LABELS[asset.platform]} ${asset.arch} · ${format}`;
 }
 
-function groupAssetsByPlatform(assets: UpdateReleaseAsset[]) {
-  return assets.reduce<Record<string, UpdateReleaseAsset[]>>((groups, asset) => {
-    const key = asset.platform;
-    groups[key] = groups[key] ?? [];
-    groups[key].push(asset);
-    return groups;
-  }, {});
-}
-
 function getDialogTitle(
   result: UpdateCheckResult | null,
   error: string | null,
@@ -55,6 +49,22 @@ function getDialogTitle(
   return result?.hasUpdate ? "发现新版本" : "当前已是最新版本";
 }
 
+function getUpgradeStatusCopy(upgradeState: UpgradeState) {
+  if (upgradeState === "preparing") {
+    return "正在准备升级文件...";
+  }
+
+  if (upgradeState === "ready") {
+    return "已打开下载页面，请按系统提示完成安装。";
+  }
+
+  if (upgradeState === "failed") {
+    return "升级入口打开失败，请稍后重试。";
+  }
+
+  return "点击升级后，会打开当前系统对应安装包的下载页面。";
+}
+
 export function UpdateDialog(props: UpdateDialogProps) {
   const {
     isOpen,
@@ -65,14 +75,52 @@ export function UpdateDialog(props: UpdateDialogProps) {
     onCheckNow,
     onOpenDownload
   } = props;
+  const [upgradeState, setUpgradeState] = useState<UpgradeState>("idle");
+  const [upgradeProgress, setUpgradeProgress] = useState(0);
+  const currentAssets = result?.currentPlatformAssets ?? [];
+  const primaryAsset = currentAssets[0] ?? null;
+  const dialogTitle = getDialogTitle(result, error, isChecking);
+
+  useEffect(() => {
+    setUpgradeState("idle");
+    setUpgradeProgress(0);
+  }, [isOpen, result?.latestTag]);
+
+  useEffect(() => {
+    if (upgradeState !== "preparing") {
+      return undefined;
+    }
+
+    const timer = window.setInterval(() => {
+      setUpgradeProgress((current) => Math.min(current + 12, 88));
+    }, 240);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [upgradeState]);
 
   if (!isOpen) {
     return null;
   }
 
-  const currentAssets = result?.currentPlatformAssets ?? [];
-  const groupedAssets = groupAssetsByPlatform(result?.assets ?? []);
-  const dialogTitle = getDialogTitle(result, error, isChecking);
+  const handleUpgrade = async () => {
+    if (!primaryAsset || upgradeState === "preparing") {
+      return;
+    }
+
+    setUpgradeState("preparing");
+    setUpgradeProgress(18);
+
+    try {
+      await Promise.resolve(onOpenDownload(primaryAsset.url));
+      setUpgradeProgress(100);
+      setUpgradeState("ready");
+    } catch {
+      setUpgradeProgress(0);
+      setUpgradeState("failed");
+    }
+  };
 
   return (
     <div className="dialog-backdrop" role="presentation">
@@ -104,46 +152,60 @@ export function UpdateDialog(props: UpdateDialogProps) {
           </p>
         ) : null}
 
-        {result?.hasUpdate && currentAssets.length ? (
-          <div className="update-section">
-            <h3>当前系统推荐下载</h3>
-            <div className="update-download-list">
-              {currentAssets.map((asset) => (
-                <button
-                  key={asset.url}
-                  type="button"
-                  className="primary-download-button"
-                  onClick={() => onOpenDownload(asset.url)}
-                >
-                  {formatAssetLabel(asset)}
-                </button>
-              ))}
+        {result?.hasUpdate ? (
+          <div className="update-upgrade-card">
+            <div className="update-device-row">
+              <span>当前设备</span>
+              <strong>
+                {PLATFORM_LABELS[result.currentPlatform]} {result.currentArch}
+              </strong>
             </div>
-          </div>
-        ) : null}
 
-        {result?.assets.length ? (
-          <div className="update-section">
-            <h3>所有平台下载</h3>
-            <div className="update-platform-grid">
-              {Object.entries(groupedAssets).map(([platform, assets]) => (
-                <div key={platform} className="update-platform-card">
-                  <strong>{PLATFORM_LABELS[platform as UpdatePlatform]}</strong>
-                  {assets.map((asset) => (
-                    <button
-                      key={asset.url}
-                      type="button"
-                      className="text-button update-link-button"
-                      onClick={() => onOpenDownload(asset.url)}
-                    >
-                      {asset.arch} · {FORMAT_LABELS[asset.format] ?? asset.format}
-                    </button>
-                  ))}
+            {primaryAsset ? (
+              <>
+                <p className="update-upgrade-card__copy">
+                  已匹配安装包：{formatAssetLabel(primaryAsset)}
+                </p>
+                <button
+                  type="button"
+                  className="primary-download-button update-upgrade-button"
+                  disabled={upgradeState === "preparing"}
+                  onClick={() => {
+                    void handleUpgrade();
+                  }}
+                >
+                  {upgradeState === "preparing"
+                    ? "正在升级..."
+                    : `升级到 v${result.latestVersion ?? ""}`}
+                </button>
+                <div className="update-progress-area">
+                  <div
+                    className={`update-progress-bar ${
+                      upgradeState === "preparing" ? "is-active" : ""
+                    }`}
+                    role="progressbar"
+                    aria-label="升级进度"
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                    aria-valuenow={upgradeProgress}
+                  >
+                    <span style={{ width: `${upgradeProgress}%` }} />
+                  </div>
+                  <p>{getUpgradeStatusCopy(upgradeState)}</p>
                 </div>
-              ))}
-            </div>
+              </>
+            ) : (
+              <p className="dialog-copy">
+                当前设备暂无可用安装包，请稍后等待对应平台构建完成。
+              </p>
+            )}
           </div>
-        ) : (
+        ) : result ? (
+          <p className="dialog-copy">
+            当前设备是 {PLATFORM_LABELS[result.currentPlatform]}{" "}
+            {result.currentArch}，暂时没有可用更新。
+          </p>
+        ) : error ? null : (
           <p className="dialog-copy">暂无可展示的下载资产。</p>
         )}
 
