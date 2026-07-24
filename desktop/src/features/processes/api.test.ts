@@ -30,7 +30,7 @@ describe("processes api", () => {
     const api = await loadApiModule();
 
     await expect(api.listProcesses()).resolves.toEqual(expected);
-    expect(window.appManagerDesktop.listProcesses).toHaveBeenCalledTimes(1);
+    expect(window.appManagerDesktop?.listProcesses).toHaveBeenCalledTimes(1);
   });
 
   it("converts bridge terminate errors into process API errors", async () => {

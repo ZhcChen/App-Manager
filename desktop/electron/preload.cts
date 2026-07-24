@@ -21,6 +21,45 @@ type ProcessItem = {
   canTerminate: boolean;
 };
 
+type ApplicationProcessNode = {
+  id: string;
+  pid: number;
+  parentPid: number | null;
+  name: string;
+  path: string;
+  userName: string;
+  kindLabel: string;
+  startTimeSeconds: number;
+  status: "running" | "protected";
+  canTerminate: boolean;
+  children: ApplicationProcessNode[];
+};
+
+type ApplicationInstanceItem = {
+  id: string;
+  pid: number;
+  name: string;
+  path: string;
+  userName: string;
+  kindLabel: string;
+  startTimeSeconds: number;
+  processCount: number;
+  status: "running" | "protected";
+  canTerminate: boolean;
+  children: ApplicationProcessNode[];
+};
+
+type ApplicationGroupItem = {
+  id: string;
+  name: string;
+  path: string;
+  instanceCount: number;
+  processCount: number;
+  status: "running" | "protected";
+  canTerminate: boolean;
+  instances: ApplicationInstanceItem[];
+};
+
 type PortBindingItem = {
   id: string;
   pid: number;
@@ -39,6 +78,25 @@ type TerminateProcessResult = {
   name: string;
 };
 
+type TerminateProcessFailure = {
+  code: string;
+  message: string;
+};
+
+type TerminateProcessEntryResult = {
+  pid: number;
+  name: string;
+  ok: boolean;
+  error: TerminateProcessFailure | null;
+};
+
+type TerminateProcessesResult = {
+  totalRequested: number;
+  terminatedCount: number;
+  failedCount: number;
+  results: TerminateProcessEntryResult[];
+};
+
 type ProcessContextMenuPosition = {
   x: number;
   y: number;
@@ -50,10 +108,26 @@ type ProcessContextMenuItem = {
   canTerminate: boolean;
 };
 
-type ProcessContextAction = {
-  action: "terminate";
-  pid: number;
+type ApplicationContextMenuItem = {
+  kind: "application" | "instance" | "process";
+  id: string;
+  name: string;
+  canTerminate: boolean;
+  pids: number[];
 };
+
+type ProcessContextAction =
+  | {
+      action: "terminate";
+      pid: number;
+    }
+  | {
+      action: "terminateMany";
+      id: string;
+      targetKind: "application" | "instance" | "process";
+      name: string;
+      pids: number[];
+    };
 
 async function invokeDesktopChannel<T>(
   channel: string,
@@ -77,6 +151,11 @@ contextBridge.exposeInMainWorld("appManagerDesktop", {
       DESKTOP_CHANNELS.bootstrapState
     );
   },
+  listApplications() {
+    return invokeDesktopChannel<ApplicationGroupItem[]>(
+      DESKTOP_CHANNELS.listApplications
+    );
+  },
   listProcesses() {
     return invokeDesktopChannel<ProcessItem[]>(DESKTOP_CHANNELS.listProcesses);
   },
@@ -87,6 +166,12 @@ contextBridge.exposeInMainWorld("appManagerDesktop", {
     return invokeDesktopChannel<TerminateProcessResult>(
       DESKTOP_CHANNELS.terminateProcess,
       pid
+    );
+  },
+  terminateProcesses(pids: number[]) {
+    return invokeDesktopChannel<TerminateProcessesResult>(
+      DESKTOP_CHANNELS.terminateProcesses,
+      pids
     );
   },
   checkForUpdates() {
@@ -106,6 +191,18 @@ contextBridge.exposeInMainWorld("appManagerDesktop", {
   ) {
     return invokeDesktopChannel<null>(
       DESKTOP_CHANNELS.showProcessContextMenu,
+      {
+        item,
+        position
+      }
+    ).then(() => undefined);
+  },
+  showApplicationContextMenu(
+    item: ApplicationContextMenuItem,
+    position: ProcessContextMenuPosition
+  ) {
+    return invokeDesktopChannel<null>(
+      DESKTOP_CHANNELS.showApplicationContextMenu,
       {
         item,
         position

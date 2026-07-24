@@ -1,7 +1,7 @@
 ---
 title: feat: 增加应用树视图
 type: feat
-status: active
+status: completed
 date: 2026-07-24
 origin: docs/brainstorms/2026-07-22-cross-platform-desktop-tech-selection-requirements.md
 ---
@@ -240,7 +240,7 @@ flowchart LR
 
 ## Implementation Units
 
-- [ ] **Unit 1: 在 Rust 原生层建立应用树模型与批量结束能力**
+- [x] **Unit 1: 在 Rust 原生层建立应用树模型与批量结束能力**
 
 **Goal:** 让 `process-core` 能基于当前进程快照返回应用组树，并支持批量结束目标 PID 集合。
 
@@ -292,7 +292,7 @@ flowchart LR
 - Rust 层能独立产出可重复的应用树结构。
 - 新命令不会破坏既有 `list` / `list-ports` / `terminate` 行为。
 
-- [ ] **Unit 2: 扩展 Electron bridge、IPC 与原生右键菜单契约**
+- [x] **Unit 2: 扩展 Electron bridge、IPC 与原生右键菜单契约**
 
 **Goal:** 在 Electron 层新增应用树查询、批量结束调用与多层级上下文菜单动作。
 
@@ -335,7 +335,7 @@ flowchart LR
 - renderer 能通过 typed bridge 调用新 API。
 - 原生菜单动作能稳定回传足够信息驱动确认与执行。
 
-- [ ] **Unit 3: 建立 renderer `features/applications` 数据层与树过滤能力**
+- [x] **Unit 3: 建立 renderer `features/applications` 数据层与树过滤能力**
 
 **Goal:** 为 `应用` tab 建立独立的类型、API、刷新 hook、树搜索和展开状态管理。
 
@@ -381,7 +381,7 @@ flowchart LR
 - 应用树数据层可单独测试。
 - `应用` tab 不需要把树计算塞回 `App.tsx` 临时状态里。
 
-- [ ] **Unit 4: 集成 `应用` tab UI、确认弹窗与跨视图刷新**
+- [x] **Unit 4: 集成 `应用` tab UI、确认弹窗与跨视图刷新**
 
 **Goal:** 在主应用壳中接入 `应用` tab，完成树视图渲染、右键结束动作、确认弹窗与反馈整合。
 

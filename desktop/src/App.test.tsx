@@ -49,6 +49,7 @@ describe("App", () => {
       screen.getByRole("button", { name: /当前版本 v/ })
     ).toBeInTheDocument();
     expect(refreshIntervalButton).toHaveTextContent("3s");
+    expect(within(tabs).getByRole("button", { name: "应用" })).toBeInTheDocument();
     expect(within(tabs).getByRole("button", { name: "CPU" })).toBeInTheDocument();
     expect(within(tabs).getByRole("button", { name: "内存" })).toBeInTheDocument();
     expect(within(tabs).getByRole("button", { name: "端口" })).toBeInTheDocument();
@@ -103,6 +104,36 @@ describe("App", () => {
     expect(within(table).getByText("App Manager")).toBeInTheDocument();
     expect(within(table).queryByText("Visual Studio Code")).not.toBeInTheDocument();
     expect(screen.getByText("1 / 5")).toBeInTheDocument();
+  });
+
+  it("filters the mock application tree by a child process query", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "应用" }));
+    fireEvent.change(screen.getByLabelText("搜索应用"), {
+      target: { value: "1541" }
+    });
+
+    expect(screen.getAllByText("Chrome for Testing").length).toBeGreaterThan(0);
+    expect(screen.getByText("Chrome Helper (Renderer)")).toBeInTheDocument();
+    expect(screen.queryByText("WeChat")).not.toBeInTheDocument();
+    expect(screen.getByText("1 / 3")).toBeInTheDocument();
+  });
+
+  it("opens the application terminate dialog on right click in preview mode", () => {
+    render(<App />);
+
+    fireEvent.click(screen.getByRole("button", { name: "应用" }));
+    fireEvent.contextMenu(screen.getAllByText("Chrome for Testing")[0]!, {
+      clientX: 60,
+      clientY: 30
+    });
+
+    const dialog = screen.getByRole("dialog");
+
+    expect(dialog).toHaveTextContent("结束该应用？");
+    expect(dialog).toHaveTextContent("Chrome for Testing");
+    expect(within(dialog).getByRole("button", { name: "结束应用" })).toBeInTheDocument();
   });
 
   it("falls back to the confirm dialog on right click when no desktop menu bridge exists", () => {

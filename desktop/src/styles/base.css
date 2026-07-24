@@ -616,6 +616,126 @@ button:disabled {
   box-shadow: var(--shadow-float-strong);
 }
 
+.application-tree-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: var(--shadow-float-strong);
+}
+
+.application-tree {
+  min-width: 0;
+}
+
+.application-tree__header,
+.application-tree__row {
+  display: grid;
+  grid-template-columns: minmax(320px, 2.4fr) minmax(180px, 1fr) 88px 120px 108px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+}
+
+.application-tree__header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-height: 42px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(16, 32, 51, 0.08);
+}
+
+.application-tree__header span {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+}
+
+.application-tree__row {
+  min-height: 52px;
+  border-bottom: 1px solid rgba(16, 32, 51, 0.08);
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease,
+    opacity 120ms ease;
+}
+
+.application-tree__row:hover {
+  background: #f8fbff;
+}
+
+.application-tree__row.is-selected {
+  background: #eef4ff;
+  box-shadow: inset 3px 0 0 var(--color-accent-strong);
+}
+
+.application-tree__row.is-busy {
+  opacity: 0.84;
+}
+
+.application-tree__cell {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+}
+
+.application-tree__cell > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.application-tree__cell--name {
+  min-width: 0;
+}
+
+.application-tree__cell--status {
+  justify-content: flex-start;
+}
+
+.application-tree__indent {
+  flex: 0 0 auto;
+}
+
+.application-tree__expander,
+.application-tree__expander-spacer {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+}
+
+.application-tree__expander {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--color-text-secondary);
+}
+
+.application-tree__expander:hover {
+  background: #eef3fa;
+  color: var(--color-text-primary);
+}
+
+.application-tree__expander span {
+  width: 8px;
+  height: 8px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  transform: translateX(-1px) rotate(-45deg);
+  transition: transform 160ms ease;
+}
+
+.application-tree__expander.is-open span {
+  transform: translateY(-1px) rotate(45deg);
+}
+
 .process-table {
   width: 100%;
   border-collapse: separate;

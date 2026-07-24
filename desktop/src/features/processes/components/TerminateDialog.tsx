@@ -1,6 +1,9 @@
-type TerminateDialogItem = {
-  pid: number;
-  name: string;
+import type { ReactNode } from "react";
+
+export type TerminateDialogItem = {
+  title: string;
+  description: ReactNode;
+  confirmLabel: string;
 };
 
 type TerminateDialogProps = {
@@ -25,17 +28,14 @@ export function TerminateDialog(props: TerminateDialogProps) {
         role="dialog"
       >
         <p className="dialog-eyebrow">确认操作</p>
-        <h2 id="terminate-dialog-title">结束该进程？</h2>
-        <p className="dialog-copy">
-          将结束 <strong>{item.name}</strong> ({item.pid})。如果该进程仍有未保存
-          的工作内容，可能会直接丢失。
-        </p>
+        <h2 id="terminate-dialog-title">{item.title}</h2>
+        <p className="dialog-copy">{item.description}</p>
         <div className="dialog-actions">
           <button type="button" className="secondary-button" onClick={onCancel}>
             取消
           </button>
           <button type="button" className="danger-button" onClick={onConfirm}>
-            结束进程
+            {item.confirmLabel}
           </button>
         </div>
       </section>

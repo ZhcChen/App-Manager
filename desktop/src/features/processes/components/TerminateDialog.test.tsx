@@ -1,22 +1,10 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { TerminateDialog } from "./TerminateDialog";
-import type { ProcessItem } from "../types";
 
-const item: ProcessItem = {
-  pid: 1824,
-  name: "Google Chrome",
-  path: "/Applications/Google Chrome.app",
-  userName: "chen",
-  kindLabel: "App",
-  cpuUsagePercent: 12.3,
-  memoryBytes: 932_184_064,
-  virtualMemoryBytes: 5_812_314_112,
-  runTimeSeconds: 16_422,
-  startTimeSeconds: 1_721_726_000,
-  diskReadBytes: 314_572_800,
-  diskWrittenBytes: 125_829_120,
-  status: "running",
-  canTerminate: true
+const item = {
+  title: "结束该进程？",
+  description: "将结束 Google Chrome (1824)。如果该进程仍有未保存的工作内容，可能会直接丢失。",
+  confirmLabel: "结束进程"
 };
 
 describe("TerminateDialog", () => {

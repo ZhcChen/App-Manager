@@ -15,9 +15,21 @@ import { TransientToast } from "./components/TransientToast";
 import { getDesktopBridge } from "./lib/desktopBridge";
 import { loadDesktopBootstrap, type DesktopBootstrap } from "./lib/desktopRuntime";
 import { canTerminateProcess } from "./features/processes/guards";
+import { ApplicationTree } from "./features/applications/components/ApplicationTree";
+import {
+  buildApplicationContextMenuTarget,
+  buildApplicationViewTree,
+  filterApplicationViewTree,
+  type ApplicationViewNode
+} from "./features/applications/tree";
+import { useApplications } from "./features/applications/useApplications";
+import type { ApplicationNodeKind } from "./features/applications/types";
 import { ProcessList } from "./features/processes/components/ProcessList";
 import { ProcessToolbar } from "./features/processes/components/ProcessToolbar";
-import { TerminateDialog } from "./features/processes/components/TerminateDialog";
+import {
+  TerminateDialog,
+  type TerminateDialogItem
+} from "./features/processes/components/TerminateDialog";
 import { PortList } from "./features/ports/components/PortList";
 import { UpdateDialog } from "./features/updates/components/UpdateDialog";
 import { openUpdateDownload, toUpdateApiError } from "./features/updates/api";
@@ -46,20 +58,37 @@ import {
 } from "./features/ports/view-config";
 
 const AUTO_REFRESH_INTERVAL_STORAGE_KEY = "app-manager:auto-refresh-interval";
-const MONITOR_VIEW_ORDER = [...PROCESS_VIEW_ORDER, "ports"] as const;
-type MonitorViewId = ProcessViewId | "ports";
+const MONITOR_VIEW_ORDER = [
+  "applications",
+  ...PROCESS_VIEW_ORDER,
+  "ports"
+] as const;
+type MonitorViewId = ProcessViewId | "applications" | "ports";
 const MONITOR_VIEW_LABELS: Record<MonitorViewId, string> = {
+  applications: "应用",
   ...PROCESS_VIEW_LABELS,
   ports: "端口"
 };
 
-type TerminateTarget = {
+type SingleTerminateTarget = {
+  source: "single";
   pid: number;
   name: string;
+  dialogItem: TerminateDialogItem;
 };
 
+type ApplicationTerminateTarget = {
+  source: "applications";
+  id: string;
+  name: string;
+  pids: number[];
+  dialogItem: TerminateDialogItem;
+};
+
+type TerminateTarget = SingleTerminateTarget | ApplicationTerminateTarget;
+
 type ActiveFeedback = {
-  source: "processes" | "ports" | "updates";
+  source: "applications" | "processes" | "ports" | "updates";
   item: TransientFeedback;
 };
 
@@ -84,7 +113,90 @@ function getInitialAutoRefreshInterval(): AutoRefreshIntervalMs {
 }
 
 function isProcessView(view: MonitorViewId): view is ProcessViewId {
-  return view !== "ports";
+  return view !== "applications" && view !== "ports";
+}
+
+function createSingleTerminateTarget(pid: number, name: string): SingleTerminateTarget {
+  return {
+    source: "single",
+    pid,
+    name,
+    dialogItem: {
+      title: "结束该进程？",
+      description: (
+        <>
+          将结束 <strong>{name}</strong> ({pid})。如果该进程仍有未保存的工作内容，
+          可能会直接丢失。
+        </>
+      ),
+      confirmLabel: "结束进程"
+    }
+  };
+}
+
+function createApplicationTerminateTarget(
+  kind: ApplicationNodeKind,
+  id: string,
+  name: string,
+  pids: number[]
+): ApplicationTerminateTarget {
+  const count = pids.length;
+
+  switch (kind) {
+    case "application":
+      return {
+        source: "applications",
+        id,
+        name,
+        pids,
+        dialogItem: {
+          title: "结束该应用？",
+          description: (
+            <>
+              将结束 <strong>{name}</strong> 当前实例关联的 {count} 个进程。这可能会
+              同时关闭多个窗口或子进程。
+            </>
+          ),
+          confirmLabel: "结束应用"
+        }
+      };
+    case "instance":
+      return {
+        source: "applications",
+        id,
+        name,
+        pids,
+        dialogItem: {
+          title: "结束该实例？",
+          description: (
+            <>
+              将结束 <strong>{name}</strong> 这个实例关联的 {count} 个进程。
+            </>
+          ),
+          confirmLabel: "结束实例"
+        }
+      };
+    case "process":
+      return {
+        source: "applications",
+        id,
+        name,
+        pids,
+        dialogItem: {
+          title: "结束该进程？",
+          description: (
+            <>
+              将结束 <strong>{name}</strong> 对应的进程。
+            </>
+          ),
+          confirmLabel: "结束进程"
+        }
+      };
+  }
+}
+
+function getFirstVisibleApplicationId(items: ApplicationViewNode[]): string | null {
+  return items[0]?.id ?? null;
 }
 
 export function App() {
@@ -98,8 +210,14 @@ export function App() {
   const [autoRefreshIntervalMs, setAutoRefreshIntervalMs] =
     useState<AutoRefreshIntervalMs>(getInitialAutoRefreshInterval);
   const [query, setQuery] = useState("");
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(
+    null
+  );
   const [selectedPid, setSelectedPid] = useState<number | null>(null);
   const [selectedPortId, setSelectedPortId] = useState<string | null>(null);
+  const [expandedApplicationIds, setExpandedApplicationIds] = useState<Set<string>>(
+    () => new Set<string>()
+  );
   const [target, setTarget] = useState<TerminateTarget | null>(null);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
   const [updateFeedback, setUpdateFeedback] = useState<TransientFeedback | null>(
@@ -119,6 +237,7 @@ export function App() {
   const [portSortDirection, setPortSortDirection] = useState<"asc" | "desc">(
     PORT_VIEW_CONFIG.defaultSort.direction
   );
+  const applications = useApplications(autoRefreshIntervalMs);
   const processes = useProcesses(autoRefreshIntervalMs);
   const ports = usePorts(autoRefreshIntervalMs);
   const updates = useUpdateCheck(bootstrapState.appVersion);
@@ -155,12 +274,13 @@ export function App() {
       setBootstrapState(result);
       if (result.runtime === "electron") {
         void Promise.all([
+          applications.refresh("initial"),
           processes.refresh("initial"),
           ports.refresh("initial")
         ]);
       }
     });
-  }, [ports.refresh, processes.refresh]);
+  }, [applications.refresh, ports.refresh, processes.refresh]);
 
   useEffect(() => {
     if (!isProcessView(activeView)) {
@@ -230,6 +350,23 @@ export function App() {
     return next;
   }, [processes.items, query, sortDirection, sortKey]);
 
+  const applicationTreeItems = useMemo(
+    () => buildApplicationViewTree(applications.items),
+    [applications.items]
+  );
+  const filteredApplicationsResult = useMemo(
+    () => filterApplicationViewTree(applicationTreeItems, query),
+    [applicationTreeItems, query]
+  );
+  const filteredApplications = filteredApplicationsResult.items;
+  const effectiveExpandedApplicationIds = useMemo(() => {
+    const next = new Set(expandedApplicationIds);
+    for (const id of filteredApplicationsResult.expandedIds) {
+      next.add(id);
+    }
+    return next;
+  }, [expandedApplicationIds, filteredApplicationsResult.expandedIds]);
+
   const filteredPorts = useMemo(() => {
     const normalized = query.trim().toLowerCase();
     const next = ports.items.filter((item) => {
@@ -273,6 +410,22 @@ export function App() {
   }, [portSortDirection, portSortKey, ports.items, query]);
 
   useEffect(() => {
+    if (!filteredApplications.length) {
+      setSelectedApplicationId(null);
+      return;
+    }
+
+    if (selectedApplicationId === null) {
+      setSelectedApplicationId(getFirstVisibleApplicationId(filteredApplications));
+      return;
+    }
+
+    if (!filteredApplications.some((item) => item.id === selectedApplicationId)) {
+      setSelectedApplicationId(getFirstVisibleApplicationId(filteredApplications));
+    }
+  }, [filteredApplications, selectedApplicationId]);
+
+  useEffect(() => {
     if (!filteredItems.length) {
       setSelectedPid(null);
       return;
@@ -311,27 +464,33 @@ export function App() {
     }
 
     return bridge.onProcessContextAction((action) => {
-      if (action.action !== "terminate") {
+      if (action.action === "terminate") {
+        const item =
+          processes.items.find((entry) => entry.pid === action.pid) ??
+          ports.items.find((entry) => entry.pid === action.pid);
+        if (!item) {
+          return;
+        }
+
+        if ("id" in item) {
+          setSelectedPortId(item.id);
+        } else {
+          setSelectedPid(item.pid);
+        }
+
+        setTarget(createSingleTerminateTarget(item.pid, item.name));
         return;
       }
 
-      const item =
-        processes.items.find((entry) => entry.pid === action.pid) ??
-        ports.items.find((entry) => entry.pid === action.pid);
-      if (!item) {
-        return;
-      }
-
-      if ("id" in item) {
-        setSelectedPortId(item.id);
-      } else {
-        setSelectedPid(item.pid);
-      }
-
-      setTarget({
-        pid: item.pid,
-        name: item.name
-      });
+      setSelectedApplicationId(action.id);
+      setTarget(
+        createApplicationTerminateTarget(
+          action.targetKind,
+          action.id,
+          action.name,
+          action.pids
+        )
+      );
     });
   }, [ports.items, processes.items]);
 
@@ -348,11 +507,34 @@ export function App() {
       return;
     }
 
+    if (target.source === "applications") {
+      const result = await applications.terminate({
+        id: target.id,
+        name: target.name,
+        pids: target.pids
+      });
+
+      if (result) {
+        await Promise.all([
+          processes.refresh("background"),
+          ports.refresh("background", {
+            reportFailure: activeView === "ports"
+          })
+        ]);
+      }
+
+      setTarget(null);
+      return;
+    }
+
     const didTerminate = await processes.terminate(target);
     if (didTerminate) {
-      await ports.refresh("background", {
-        reportFailure: activeView === "ports"
-      });
+      await Promise.all([
+        applications.refresh("background"),
+        ports.refresh("background", {
+          reportFailure: activeView === "ports"
+        })
+      ]);
     }
     setTarget(null);
   };
@@ -378,6 +560,24 @@ export function App() {
         source: "updates",
         item: updateFeedback
       };
+    }
+
+    if (activeView === "applications") {
+      if (applications.feedback) {
+        return {
+          source: "applications",
+          item: applications.feedback
+        };
+      }
+
+      if (processes.feedback) {
+        return {
+          source: "processes",
+          item: processes.feedback
+        };
+      }
+
+      return null;
     }
 
     if (activeView === "ports") {
@@ -406,7 +606,13 @@ export function App() {
     }
 
     return null;
-  }, [activeView, ports.feedback, processes.feedback, updateFeedback]);
+  }, [
+    activeView,
+    applications.feedback,
+    ports.feedback,
+    processes.feedback,
+    updateFeedback
+  ]);
 
   return (
     <main className="app-shell">
@@ -439,7 +645,7 @@ export function App() {
                   ) : null}
                 </button>
               </div>
-              <p>进程与端口监视器</p>
+              <p>进程、应用与端口监视器</p>
             </div>
           </div>
 
@@ -473,22 +679,104 @@ export function App() {
 
         <ProcessToolbar
           activeViewLabel={activeViewLabel}
-          countNoun={activeView === "ports" ? "端口" : "进程"}
-          searchAriaLabel={activeView === "ports" ? "搜索端口" : "搜索进程"}
+          countNoun={
+            activeView === "applications"
+              ? "应用组"
+              : activeView === "ports"
+                ? "端口"
+                : "进程"
+          }
+          searchAriaLabel={
+            activeView === "applications"
+              ? "搜索应用"
+              : activeView === "ports"
+                ? "搜索端口"
+                : "搜索进程"
+          }
           searchPlaceholder={
-            activeView === "ports"
-              ? "搜索端口、协议、进程、路径或 PID"
-              : "搜索进程、路径、用户或 PID"
+            activeView === "applications"
+              ? "搜索应用、实例、进程、路径或 PID"
+              : activeView === "ports"
+                ? "搜索端口、协议、进程、路径或 PID"
+                : "搜索进程、路径、用户或 PID"
           }
           overviewIcon={activeView === "ports" ? <PortIcon /> : <ActivityIcon />}
           query={query}
-          resultCount={activeView === "ports" ? filteredPorts.length : filteredItems.length}
-          totalCount={activeView === "ports" ? ports.items.length : processes.items.length}
+          resultCount={
+            activeView === "applications"
+              ? filteredApplications.length
+              : activeView === "ports"
+                ? filteredPorts.length
+                : filteredItems.length
+          }
+          totalCount={
+            activeView === "applications"
+              ? applications.items.length
+              : activeView === "ports"
+                ? ports.items.length
+                : processes.items.length
+          }
           onQueryChange={setQuery}
           onClearQuery={() => setQuery("")}
         />
 
-        {activeView === "ports" ? (
+        {activeView === "applications" ? (
+          <ApplicationTree
+            items={filteredApplications}
+            error={applications.error}
+            isLoading={applications.isLoading}
+            query={query}
+            selectedId={selectedApplicationId}
+            expandedIds={effectiveExpandedApplicationIds}
+            terminatingTargetId={applications.terminatingTargetId}
+            onSelect={(node) => setSelectedApplicationId(node.id)}
+            onToggle={(nodeId) => {
+              setExpandedApplicationIds((current) => {
+                const next = new Set(current);
+                if (next.has(nodeId)) {
+                  next.delete(nodeId);
+                } else {
+                  next.add(nodeId);
+                }
+                return next;
+              });
+            }}
+            onOpenContextMenu={(node, position) => {
+              const targetItem = buildApplicationContextMenuTarget(node);
+              const bridge = getDesktopBridge();
+
+              if (bridge?.showApplicationContextMenu) {
+                void bridge.showApplicationContextMenu(targetItem, position).catch(() => {
+                  if (targetItem.canTerminate) {
+                    setTarget(
+                      createApplicationTerminateTarget(
+                        targetItem.kind,
+                        targetItem.id,
+                        targetItem.name,
+                        targetItem.pids
+                      )
+                    );
+                  }
+                });
+                return;
+              }
+
+              if (targetItem.canTerminate) {
+                setTarget(
+                  createApplicationTerminateTarget(
+                    targetItem.kind,
+                    targetItem.id,
+                    targetItem.name,
+                    targetItem.pids
+                  )
+                );
+              }
+            }}
+            onRetry={() => {
+              void applications.refresh();
+            }}
+          />
+        ) : activeView === "ports" ? (
           <PortList
             items={filteredPorts}
             columns={PORT_VIEW_CONFIG.columns}
@@ -505,14 +793,14 @@ export function App() {
               if (bridge?.showProcessContextMenu) {
                 void bridge.showProcessContextMenu(item, position).catch(() => {
                   if (canTerminateProcess(item)) {
-                    setTarget({ pid: item.pid, name: item.name });
+                    setTarget(createSingleTerminateTarget(item.pid, item.name));
                   }
                 });
                 return;
               }
 
               if (canTerminateProcess(item)) {
-                setTarget({ pid: item.pid, name: item.name });
+                setTarget(createSingleTerminateTarget(item.pid, item.name));
               }
             }}
             onSortChange={(key) => {
@@ -547,14 +835,14 @@ export function App() {
               if (bridge?.showProcessContextMenu) {
                 void bridge.showProcessContextMenu(item, position).catch(() => {
                   if (canTerminateProcess(item)) {
-                    setTarget({ pid: item.pid, name: item.name });
+                    setTarget(createSingleTerminateTarget(item.pid, item.name));
                   }
                 });
                 return;
               }
 
               if (canTerminateProcess(item)) {
-                setTarget({ pid: item.pid, name: item.name });
+                setTarget(createSingleTerminateTarget(item.pid, item.name));
               }
             }}
             onSortChange={(key) => {
@@ -574,7 +862,7 @@ export function App() {
       </section>
 
       <TerminateDialog
-        item={target}
+        item={target?.dialogItem ?? null}
         onCancel={() => setTarget(null)}
         onConfirm={handleConfirmTerminate}
       />
@@ -593,10 +881,7 @@ export function App() {
           try {
             await openUpdateDownload(url);
           } catch (cause) {
-            pushUpdateFeedback(
-              "打开下载失败",
-              toUpdateApiError(cause).message
-            );
+            pushUpdateFeedback("打开下载失败", toUpdateApiError(cause).message);
             throw cause;
           }
         }}
@@ -605,6 +890,11 @@ export function App() {
       <TransientToast
         item={activeFeedback?.item ?? null}
         onClear={(feedbackId) => {
+          if (activeFeedback?.source === "applications") {
+            applications.dismissFeedback(feedbackId);
+            return;
+          }
+
           if (activeFeedback?.source === "ports") {
             ports.dismissFeedback(feedbackId);
             return;
