@@ -207,4 +207,26 @@ sha512: arm64deb
       }
     ]);
   });
+
+  it("prefers the canonical Linux deb file when a normalized alias collides in the same artifact", async () => {
+    const sourceDir = await createTempDir();
+    const targetDir = path.join(sourceDir, "out");
+
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-linux-arm64-assets/App-Manager-${version}-linux-amd64.deb`,
+      "normalized-alias-binary"
+    );
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-linux-arm64-assets/App-Manager-${version}-linux-arm64.deb`,
+      "canonical-binary"
+    );
+
+    runCollector(sourceDir, targetDir);
+
+    expect(
+      await readFile(path.join(targetDir, `App-Manager-${version}-linux-arm64.deb`), "utf8")
+    ).toBe("canonical-binary");
+  });
 });

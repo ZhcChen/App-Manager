@@ -75,13 +75,25 @@ function isReleaseArtifactName(fileName) {
 }
 
 function getSourceArtifactContext(sourcePath) {
-  for (const segment of path.resolve(sourcePath).split(path.sep)) {
+  const resolvedPath = path.resolve(sourcePath);
+  const segments = resolvedPath.split(path.sep);
+
+  for (let index = 0; index < segments.length; index += 1) {
+    const segment = segments[index];
     const match = segment.match(artifactContextPattern);
 
     if (match) {
+      const artifactRootSegments = segments
+        .slice(0, index + 1)
+        .filter((segment, segmentIndex) => !(segmentIndex === 0 && segment === ""));
+      const artifactRoot = resolvedPath.startsWith(path.sep)
+        ? path.join(path.sep, ...artifactRootSegments)
+        : path.join(...artifactRootSegments);
+
       return {
         platform: match[1],
-        arch: match[2]
+        arch: match[2],
+        artifactRoot
       };
     }
   }
@@ -116,6 +128,50 @@ function normalizeReleaseAssetName(fileName, sourcePath) {
   }
 
   return `${match[1]}${expectedArch}${match[3]}`;
+}
+
+function pruneNormalizedAliasSources(fileName, sourceFiles) {
+  const filesByArtifactRoot = new Map();
+  const passthroughFiles = [];
+
+  for (const sourceFile of sourceFiles) {
+    const artifactRoot = getSourceArtifactContext(sourceFile)?.artifactRoot;
+
+    if (!artifactRoot) {
+      passthroughFiles.push(sourceFile);
+      continue;
+    }
+
+    const group = filesByArtifactRoot.get(artifactRoot) ?? [];
+    group.push(sourceFile);
+    filesByArtifactRoot.set(artifactRoot, group);
+  }
+
+  const prunedFiles = [...passthroughFiles];
+
+  for (const [artifactRoot, artifactFiles] of filesByArtifactRoot) {
+    if (artifactFiles.length === 1) {
+      prunedFiles.push(artifactFiles[0]);
+      continue;
+    }
+
+    const canonicalFiles = artifactFiles.filter(
+      (sourceFile) => path.basename(sourceFile) === fileName
+    );
+
+    if (canonicalFiles.length === 1) {
+      const droppedFiles = artifactFiles.filter((sourceFile) => sourceFile !== canonicalFiles[0]);
+      console.warn(
+        `Ignored normalized alias release assets for ${fileName} from ${artifactRoot}: ${droppedFiles.join(", ")}.`
+      );
+      prunedFiles.push(canonicalFiles[0]);
+      continue;
+    }
+
+    prunedFiles.push(...artifactFiles);
+  }
+
+  return prunedFiles;
 }
 
 async function collectAssetFiles(rootDir) {
@@ -404,28 +460,29 @@ async function main() {
   }
 
   for (const [fileName, sourceFiles] of filesByName) {
+    const normalizedSourceFiles = pruneNormalizedAliasSources(fileName, sourceFiles);
     const targetPath = path.join(targetDir, fileName);
 
     if (isUpdateMetadataName(fileName)) {
-      await mergeUpdateMetadataFiles(fileName, sourceFiles, targetPath);
+      await mergeUpdateMetadataFiles(fileName, normalizedSourceFiles, targetPath);
       continue;
     }
 
-    if (sourceFiles.length === 1) {
-      await copyFile(sourceFiles[0], targetPath);
+    if (normalizedSourceFiles.length === 1) {
+      await copyFile(normalizedSourceFiles[0], targetPath);
       continue;
     }
 
-    if (await areFilesIdentical(sourceFiles)) {
+    if (await areFilesIdentical(normalizedSourceFiles)) {
       console.warn(
-        `Deduplicated identical release asset ${fileName} from ${sourceFiles.join(", ")}.`
+        `Deduplicated identical release asset ${fileName} from ${normalizedSourceFiles.join(", ")}.`
       );
-      await copyFile(sourceFiles[0], targetPath);
+      await copyFile(normalizedSourceFiles[0], targetPath);
       continue;
     }
 
     throw new Error(
-      `Duplicate release asset ${fileName} detected. Sources: ${sourceFiles.join(", ")}.`
+      `Duplicate release asset ${fileName} detected. Sources: ${normalizedSourceFiles.join(", ")}.`
     );
   }
 
