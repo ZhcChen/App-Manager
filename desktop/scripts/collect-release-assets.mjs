@@ -1,11 +1,12 @@
 import {
   copyFile,
-  mkdir,
   readFile,
+  mkdir,
   readdir,
   rm,
   writeFile
 } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parse, stringify } from "yaml";
@@ -98,17 +99,107 @@ function pickPrimaryFile(files) {
   return [...files].sort((left, right) => left.url.localeCompare(right.url))[0] ?? null;
 }
 
-async function mergeUpdateMetadataFiles(sourceFiles, targetPath) {
-  const documents = await Promise.all(
+function getPreferredMetadataExtensions(fileName) {
+  const normalizedName = fileName.toLowerCase();
+
+  if (normalizedName === "latest-mac.yml") {
+    return [".zip", ".dmg"];
+  }
+
+  if (
+    normalizedName === "latest-linux.yml" ||
+    /^latest-linux-(arm|arm64)\.yml$/.test(normalizedName)
+  ) {
+    return [".appimage", ".deb"];
+  }
+
+  if (normalizedName === "latest.yml") {
+    return [".exe"];
+  }
+
+  return [];
+}
+
+function isValidMetadataDocument(document) {
+  return Boolean(document) && typeof document === "object" && !Array.isArray(document);
+}
+
+function pickPrimaryFileForMetadata(fileName, files, documents) {
+  const preferredExtensions = getPreferredMetadataExtensions(fileName);
+  const fileByUrl = new Map(files.map((file) => [String(file.url), file]));
+
+  for (const extension of preferredExtensions) {
+    for (const document of documents) {
+      if (
+        typeof document.path === "string" &&
+        document.path.toLowerCase().endsWith(extension) &&
+        fileByUrl.has(document.path)
+      ) {
+        return fileByUrl.get(document.path) ?? null;
+      }
+    }
+  }
+
+  for (const document of documents) {
+    if (typeof document.path === "string" && fileByUrl.has(document.path)) {
+      return fileByUrl.get(document.path) ?? null;
+    }
+  }
+
+  for (const extension of preferredExtensions) {
+    const matchingFile = files.find((file) => String(file.url).toLowerCase().endsWith(extension));
+    if (matchingFile) {
+      return matchingFile;
+    }
+  }
+
+  return pickPrimaryFile(files);
+}
+
+function mergePackagesMap(documents) {
+  const mergedPackages = {};
+
+  for (const document of documents) {
+    if (!document?.packages || typeof document.packages !== "object") {
+      continue;
+    }
+
+    Object.assign(mergedPackages, document.packages);
+  }
+
+  return Object.keys(mergedPackages).length > 0 ? mergedPackages : undefined;
+}
+
+async function mergeUpdateMetadataFiles(fileName, sourceFiles, targetPath) {
+  const rawDocuments = await Promise.all(
     sourceFiles.map(async (sourceFile) => {
-      return parse(await readFile(sourceFile, "utf8"));
+      return {
+        sourceFile,
+        document: parse(await readFile(sourceFile, "utf8"))
+      };
     })
   );
-  const [firstDocument, ...otherDocuments] = documents;
+  const validDocuments = rawDocuments.filter(({ document }) => isValidMetadataDocument(document));
+  const invalidDocuments = rawDocuments.filter(({ document }) => !isValidMetadataDocument(document));
 
-  if (!firstDocument || typeof firstDocument !== "object") {
-    throw new Error(`Invalid update metadata in ${sourceFiles[0]}.`);
+  if (invalidDocuments.length > 0) {
+    console.warn(
+      `Skipped invalid update metadata for ${fileName}: ${invalidDocuments
+        .map(({ sourceFile }) => sourceFile)
+        .join(", ")}`
+    );
   }
+
+  const [firstDocumentEntry, ...otherDocumentEntries] = validDocuments;
+
+  if (!firstDocumentEntry) {
+    throw new Error(
+      `Invalid update metadata for ${fileName}. Sources: ${sourceFiles.join(", ")}.`
+    );
+  }
+
+  const firstDocument = firstDocumentEntry.document;
+  const otherDocuments = otherDocumentEntries.map(({ document }) => document);
 
   const mergedFiles = new Map();
 
@@ -127,11 +218,20 @@ async function mergeUpdateMetadataFiles(sourceFiles, targetPath) {
   const mergedFileList = [...mergedFiles.values()].sort((left, right) =>
     String(left.url).localeCompare(String(right.url))
   );
-  const primaryFile = pickPrimaryFile(mergedFileList);
+  const primaryFile = pickPrimaryFileForMetadata(
+    fileName,
+    mergedFileList,
+    validDocuments.map(({ document }) => document)
+  );
   const nextDocument = {
     ...firstDocument,
     files: mergedFileList
   };
+  const mergedPackages = mergePackagesMap(validDocuments.map(({ document }) => document));
+
+  if (mergedPackages) {
+    nextDocument.packages = mergedPackages;
+  }
 
   if (primaryFile) {
     nextDocument.path = primaryFile.url;
@@ -140,6 +240,16 @@ async function mergeUpdateMetadataFiles(sourceFiles, targetPath) {
   }
 
   await writeFile(targetPath, stringify(nextDocument), "utf8");
+}
+
+async function hashFile(filePath) {
+  const content = await readFile(filePath);
+  return createHash("sha256").update(content).digest("hex");
+}
+
+async function areFilesIdentical(filePaths) {
+  const hashes = await Promise.all(filePaths.map((filePath) => hashFile(filePath)));
+  return new Set(hashes).size <= 1;
 }
 
 const sourceDir = path.resolve(process.argv[2] ?? defaultSourceDir);
@@ -171,7 +281,15 @@ for (const [fileName, sourceFiles] of filesByName) {
   }
 
   if (isUpdateMetadataName(fileName)) {
-    await mergeUpdateMetadataFiles(sourceFiles, targetPath);
+    await mergeUpdateMetadataFiles(fileName, sourceFiles, targetPath);
+    continue;
+  }
+
+  if (await areFilesIdentical(sourceFiles)) {
+    console.warn(
+      `Deduplicated identical release asset ${fileName} from ${sourceFiles.join(", ")}.`
+    );
+    await copyFile(sourceFiles[0], targetPath);
     continue;
   }
 
