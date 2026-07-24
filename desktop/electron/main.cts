@@ -1,6 +1,9 @@
 import path from "node:path";
 import { app, BrowserWindow, nativeImage } from "electron";
-import { resolvePngBrandIconPath, shouldApplyDockIcon } from "./branding.cjs";
+import {
+  resolvePngBrandIconPath,
+  shouldApplyRuntimeDockIcon
+} from "./branding.cjs";
 import { registerBootstrapHandlers } from "./ipc/bootstrap.cjs";
 import { registerProcessHandlers } from "./ipc/processes.cjs";
 import { registerUpdateHandlers } from "./ipc/updates.cjs";
@@ -27,7 +30,7 @@ function resolveCurrentPngBrandIconPath() {
 function applyRuntimeBrandIcon() {
   const dock = app.dock;
 
-  if (!dock || !shouldApplyDockIcon(process.platform, true)) {
+  if (!dock || !shouldApplyRuntimeDockIcon(process.platform, true, isDevRuntime)) {
     return;
   }
 

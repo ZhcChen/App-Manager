@@ -6,7 +6,7 @@ import {
   RELEASE_DOCK_ICON_NAME,
   resolveDockIconName,
   resolvePngBrandIconPath,
-  shouldApplyDockIcon
+  shouldApplyRuntimeDockIcon
 } from "./branding.cjs";
 
 describe("desktop branding helpers", () => {
@@ -45,10 +45,11 @@ describe("desktop branding helpers", () => {
     );
   });
 
-  it("only applies Dock icons on macOS when the Dock API exists", () => {
-    expect(shouldApplyDockIcon("darwin", true)).toBe(true);
-    expect(shouldApplyDockIcon("darwin", false)).toBe(false);
-    expect(shouldApplyDockIcon("win32", true)).toBe(false);
-    expect(shouldApplyDockIcon("linux", true)).toBe(false);
+  it("only applies runtime Dock overrides on macOS development builds", () => {
+    expect(shouldApplyRuntimeDockIcon("darwin", true, true)).toBe(true);
+    expect(shouldApplyRuntimeDockIcon("darwin", true, false)).toBe(false);
+    expect(shouldApplyRuntimeDockIcon("darwin", false, true)).toBe(false);
+    expect(shouldApplyRuntimeDockIcon("win32", true, true)).toBe(false);
+    expect(shouldApplyRuntimeDockIcon("linux", true, true)).toBe(false);
   });
 });

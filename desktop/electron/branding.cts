@@ -28,6 +28,10 @@ export function resolvePngBrandIconPath({
   return path.resolve(moduleDir, "../../packages/brand/logo", iconName);
 }
 
-export function shouldApplyDockIcon(platform: NodeJS.Platform, hasDock: boolean) {
-  return platform === "darwin" && hasDock;
+export function shouldApplyRuntimeDockIcon(
+  platform: NodeJS.Platform,
+  hasDock: boolean,
+  isDevRuntime: boolean
+) {
+  return platform === "darwin" && hasDock && isDevRuntime;
 }
