@@ -115,27 +115,39 @@ function splitBlockmapSuffix(fileName) {
   };
 }
 
-function getExpectedLinuxAssetArch(fileName, artifactArch) {
+function getExpectedArtifactArch(fileName, context) {
   const normalizedName = fileName.toLowerCase();
 
-  if (normalizedName.endsWith(".deb")) {
-    if (artifactArch === "x64") {
+  if (context.platform === "linux" && normalizedName.endsWith(".deb")) {
+    if (context.arch === "x64") {
       return "amd64";
     }
 
-    if (artifactArch === "arm64") {
+    if (context.arch === "arm64") {
       return "arm64";
     }
 
     return null;
   }
 
-  if (normalizedName.endsWith(".appimage")) {
-    if (artifactArch === "x64") {
+  if (context.platform === "linux" && normalizedName.endsWith(".appimage")) {
+    if (context.arch === "x64") {
       return "x64";
     }
 
-    if (artifactArch === "arm64") {
+    if (context.arch === "arm64") {
+      return "arm64";
+    }
+
+    return null;
+  }
+
+  if (context.platform === "windows" && normalizedName.endsWith(".exe")) {
+    if (context.arch === "x64") {
+      return "x64";
+    }
+
+    if (context.arch === "arm64") {
       return "arm64";
     }
 
@@ -149,12 +161,13 @@ function normalizeReleaseAssetName(fileName, sourcePath) {
   const context = getSourceArtifactContext(sourcePath);
   const { baseName, suffix } = splitBlockmapSuffix(fileName);
 
-  if (!context || context.platform !== "linux") {
+  if (!context || !["linux", "windows"].includes(context.platform)) {
     return fileName;
   }
 
-  const expectedArch = getExpectedLinuxAssetArch(baseName, context.arch);
-  const match = baseName.match(/^(.*-linux-)([^.]+)(\.[^.]+)$/i);
+  const platformToken = context.platform === "windows" ? "win" : context.platform;
+  const expectedArch = getExpectedArtifactArch(baseName, context);
+  const match = baseName.match(new RegExp(`^(.*-${platformToken}-)([^.]+)(\\.[^.]+)$`, "i"));
 
   if (!expectedArch || !match) {
     return fileName;
@@ -163,9 +176,10 @@ function normalizeReleaseAssetName(fileName, sourcePath) {
   return `${match[1]}${expectedArch}${match[3]}${suffix}`;
 }
 
-function getPreferredNormalizedAliasNames(fileName, artifactArch) {
+function getPreferredNormalizedAliasNames(fileName, context) {
   const { baseName, suffix } = splitBlockmapSuffix(fileName);
-  const match = baseName.match(/^(.*-linux-)([^.]+)(\.[^.]+)$/i);
+  const platformToken = context.platform === "windows" ? "win" : context.platform;
+  const match = baseName.match(new RegExp(`^(.*-${platformToken}-)([^.]+)(\\.[^.]+)$`, "i"));
 
   if (!match) {
     return [];
@@ -174,22 +188,22 @@ function getPreferredNormalizedAliasNames(fileName, artifactArch) {
   const extension = match[3].toLowerCase();
   const aliases = [];
 
-  if (extension === ".appimage") {
-    if (artifactArch === "x64") {
+  if (context.platform === "linux" && extension === ".appimage") {
+    if (context.arch === "x64") {
       aliases.push(`${match[1]}x86_64${match[3]}${suffix}`);
     }
 
-    if (artifactArch === "arm64") {
+    if (context.arch === "arm64") {
       aliases.push(`${match[1]}aarch64${match[3]}${suffix}`);
     }
   }
 
-  if (extension === ".deb") {
-    if (artifactArch === "x64") {
+  if (context.platform === "linux" && extension === ".deb") {
+    if (context.arch === "x64") {
       aliases.push(`${match[1]}x64${match[3]}${suffix}`);
     }
 
-    if (artifactArch === "arm64") {
+    if (context.arch === "arm64") {
       aliases.push(`${match[1]}aarch64${match[3]}${suffix}`);
     }
   }
@@ -235,7 +249,7 @@ async function pruneNormalizedAliasSources(fileName, sourceFiles) {
     }
 
     const preferredAliases = artifactContext
-      ? getPreferredNormalizedAliasNames(fileName, artifactContext.arch)
+      ? getPreferredNormalizedAliasNames(fileName, artifactContext)
       : [];
     const preferredAliasFile = preferredAliases
       .map((aliasName) =>

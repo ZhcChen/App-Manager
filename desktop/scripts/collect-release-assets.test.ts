@@ -350,4 +350,58 @@ sha512: x64appimage
       )
     ).toBe("preferred-x86_64-blockmap");
   });
+
+  it("normalizes Windows exe assets and metadata using the artifact directory architecture", async () => {
+    const sourceDir = await createTempDir();
+    const targetDir = path.join(sourceDir, "out");
+
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-windows-x64-assets/App-Manager-${version}-win-arm64.exe`,
+      "windows-x64-exe"
+    );
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-windows-x64-assets/App-Manager-${version}-win-arm64.exe.blockmap`,
+      "windows-x64-blockmap"
+    );
+    await writeFixtureFile(
+      sourceDir,
+      "desktop-windows-x64-assets/latest.yml",
+      `version: ${version}
+files:
+  - url: App-Manager-${version}-win-arm64.exe
+    sha512: winx64
+path: App-Manager-${version}-win-arm64.exe
+sha512: winx64
+`
+    );
+    await writeFixtureFile(
+      sourceDir,
+      `desktop-windows-arm64-assets/App-Manager-${version}-win-arm64.exe`,
+      "windows-arm64-exe"
+    );
+
+    runCollector(sourceDir, targetDir);
+
+    expect(
+      await readFile(path.join(targetDir, `App-Manager-${version}-win-x64.exe`), "utf8")
+    ).toBe("windows-x64-exe");
+    expect(
+      await readFile(path.join(targetDir, `App-Manager-${version}-win-x64.exe.blockmap`), "utf8")
+    ).toBe("windows-x64-blockmap");
+    expect(
+      await readFile(path.join(targetDir, `App-Manager-${version}-win-arm64.exe`), "utf8")
+    ).toBe("windows-arm64-exe");
+
+    const output = parse(await readFile(path.join(targetDir, "latest.yml"), "utf8"));
+    expect(output.path).toBe(`App-Manager-${version}-win-x64.exe`);
+    expect(output.sha512).toBe("winx64");
+    expect(output.files).toEqual([
+      {
+        url: `App-Manager-${version}-win-x64.exe`,
+        sha512: "winx64"
+      }
+    ]);
+  });
 });
