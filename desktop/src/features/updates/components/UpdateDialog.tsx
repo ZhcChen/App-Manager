@@ -3,6 +3,7 @@ import type { UpdateCheckResult, UpdatePlatform, UpdateReleaseAsset } from "../t
 
 type UpdateDialogProps = {
   isOpen: boolean;
+  currentVersion: string;
   result: UpdateCheckResult | null;
   error: string | null;
   isChecking: boolean;
@@ -68,6 +69,7 @@ function getUpgradeStatusCopy(upgradeState: UpgradeState) {
 export function UpdateDialog(props: UpdateDialogProps) {
   const {
     isOpen,
+    currentVersion,
     result,
     error,
     isChecking,
@@ -136,7 +138,7 @@ export function UpdateDialog(props: UpdateDialogProps) {
         <div className="update-version-card">
           <div>
             <span>当前版本</span>
-            <strong>v{result?.currentVersion ?? "--"}</strong>
+            <strong>v{result?.currentVersion ?? currentVersion}</strong>
           </div>
           <div>
             <span>最新版本</span>

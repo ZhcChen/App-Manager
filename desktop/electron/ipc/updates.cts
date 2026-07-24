@@ -2,8 +2,10 @@ import { app, ipcMain, shell } from "electron";
 import { DESKTOP_CHANNELS } from "./channels.cjs";
 import { commandError, commandOk } from "./result.cjs";
 
-const RELEASE_API_URL =
-  "https://api.github.com/repos/ZhcChen/App-Manager/releases/latest";
+const RELEASE_PAGE_URL =
+  "https://github.com/ZhcChen/App-Manager/releases/latest";
+const RELEASE_TAG_URL_PREFIX =
+  "https://github.com/ZhcChen/App-Manager/releases/tag/";
 const RELEASE_DOWNLOAD_URL_PREFIX =
   "/ZhcChen/App-Manager/releases/download/";
 const RELEASE_CHECK_TIMEOUT_MS = 10_000;
@@ -11,20 +13,6 @@ const RELEASE_CHECK_TIMEOUT_MS = 10_000;
 type UpdatePlatform = "macos" | "windows" | "linux" | "unknown";
 type UpdateArch = "x64" | "arm64" | "unknown";
 type UpdateAssetFormat = "dmg" | "exe" | "appimage" | "deb" | "zip" | "unknown";
-
-type GitHubReleaseAsset = {
-  name?: unknown;
-  browser_download_url?: unknown;
-};
-
-type GitHubReleasePayload = {
-  tag_name?: unknown;
-  name?: unknown;
-  html_url?: unknown;
-  body?: unknown;
-  published_at?: unknown;
-  assets?: unknown;
-};
 
 export type UpdateReleaseAsset = {
   name: string;
@@ -56,6 +44,11 @@ type ParsedVersion = {
   minor: number;
   patch: number;
   prerelease: string[];
+};
+
+type ReleasePageSnapshot = {
+  html: string;
+  finalUrl: string;
 };
 
 function normalizeVersion(version: string): string {
@@ -234,6 +227,34 @@ function isObjectRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
 
+function createReleaseAsset(
+  name: string,
+  url: string
+): UpdateReleaseAsset | null {
+  if (!isAllowedDownloadUrl(url)) {
+    return null;
+  }
+
+  const normalizedName = name.toLowerCase();
+  const platform = detectPlatform(normalizedName);
+  const arch = detectArch(normalizedName);
+  const format = detectFormat(normalizedName);
+
+  if (platform === "unknown" || arch === "unknown" || format === "unknown") {
+    return null;
+  }
+
+  return {
+    name,
+    url,
+    platform,
+    arch,
+    format,
+    isCurrentPlatform:
+      platform === getCurrentPlatform() && arch === getCurrentArch()
+  };
+}
+
 export function toReleaseAsset(asset: unknown): UpdateReleaseAsset | null {
   if (!isObjectRecord(asset)) {
     return null;
@@ -247,60 +268,91 @@ export function toReleaseAsset(asset: unknown): UpdateReleaseAsset | null {
     return null;
   }
 
-  if (!isAllowedDownloadUrl(asset.browser_download_url)) {
-    return null;
-  }
-
-  const normalizedName = asset.name.toLowerCase();
-  const platform = detectPlatform(normalizedName);
-  const arch = detectArch(normalizedName);
-  const format = detectFormat(normalizedName);
-
-  if (platform === "unknown" || arch === "unknown" || format === "unknown") {
-    return null;
-  }
-
-  return {
-    name: asset.name,
-    url: asset.browser_download_url,
-    platform,
-    arch,
-    format,
-    isCurrentPlatform:
-      platform === getCurrentPlatform() && arch === getCurrentArch()
-  };
+  return createReleaseAsset(asset.name, asset.browser_download_url);
 }
 
-export function releasePayloadToResult(
-  payload: GitHubReleasePayload
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function extractLatestTag(snapshot: ReleasePageSnapshot): string {
+  const finalUrlMatch = snapshot.finalUrl.match(/\/releases\/tag\/(v[^/?#]+)/i);
+  if (finalUrlMatch?.[1]) {
+    return finalUrlMatch[1];
+  }
+
+  const htmlMatch = snapshot.html.match(
+    /(?:og:url" content="|apple-itunes-app" content="[^"]*app-argument=)\/?ZhcChen\/App-Manager\/releases\/tag\/(v[^"&<]+)/i
+  );
+  if (htmlMatch?.[1]) {
+    return htmlMatch[1];
+  }
+
+  throw new Error("GitHub release page is missing tag_name.");
+}
+
+function extractReleaseDate(snapshot: ReleasePageSnapshot): string | null {
+  const match = snapshot.html.match(/<relative-time[^>]+datetime="([^"]+)"/i);
+  return match?.[1] ?? null;
+}
+
+function extractReleaseAssetUrls(
+  snapshot: ReleasePageSnapshot,
+  latestTag: string
+): string[] {
+  const assetUrls = new Set<string>();
+  const assetUrlPattern = new RegExp(
+    `https://github\\.com/ZhcChen/App-Manager/releases/download/${escapeRegExp(latestTag)}/[^"<\\s]+`,
+    "g"
+  );
+
+  for (const match of snapshot.html.matchAll(assetUrlPattern)) {
+    assetUrls.add(match[0]);
+  }
+
+  return [...assetUrls];
+}
+
+function toReleaseAssetFromUrl(url: string): UpdateReleaseAsset | null {
+  try {
+    const parsedUrl = new URL(url);
+    const segments = parsedUrl.pathname.split("/");
+    const name = decodeURIComponent(segments[segments.length - 1] ?? "");
+    if (!name) {
+      return null;
+    }
+
+    return createReleaseAsset(name, url);
+  } catch {
+    return null;
+  }
+}
+
+export function releasePageToResult(
+  snapshot: ReleasePageSnapshot
 ): UpdateCheckResult {
   const currentVersion = app.getVersion();
-  if (typeof payload.tag_name !== "string" || !payload.tag_name.trim()) {
-    throw new Error("GitHub release payload is missing tag_name.");
-  }
-
-  if (!Array.isArray(payload.assets)) {
-    throw new Error("GitHub release payload is missing assets.");
-  }
-
-  const latestTag = payload.tag_name;
+  const latestTag = extractLatestTag(snapshot);
   const latestVersion = normalizeVersion(latestTag);
-  const assets = payload.assets
-    .map((asset) => toReleaseAsset(asset))
+  const assets = extractReleaseAssetUrls(snapshot, latestTag)
+    .map((url) => toReleaseAssetFromUrl(url))
     .filter((asset): asset is UpdateReleaseAsset => asset !== null);
+
+  if (!assets.length) {
+    throw new Error("GitHub release page is missing assets.");
+  }
+
   const currentPlatformAssets = assets.filter((asset) => asset.isCurrentPlatform);
 
   return {
     currentVersion,
     latestVersion,
     latestTag,
-    hasUpdate:
-      compareVersions(latestVersion, currentVersion) > 0,
-    releaseName: typeof payload.name === "string" ? payload.name : null,
-    releaseUrl: typeof payload.html_url === "string" ? payload.html_url : null,
-    releaseNotes: typeof payload.body === "string" ? payload.body : "",
-    publishedAt:
-      typeof payload.published_at === "string" ? payload.published_at : null,
+    hasUpdate: compareVersions(latestVersion, currentVersion) > 0,
+    releaseName: `App Manager ${latestTag}`,
+    releaseUrl: `${RELEASE_TAG_URL_PREFIX}${latestTag}`,
+    releaseNotes: "",
+    publishedAt: extractReleaseDate(snapshot),
     checkedAt: new Date().toISOString(),
     currentPlatform: getCurrentPlatform(),
     currentArch: getCurrentArch(),
@@ -314,20 +366,22 @@ export async function checkForUpdates(): Promise<UpdateCheckResult> {
   const timeout = setTimeout(() => controller.abort(), RELEASE_CHECK_TIMEOUT_MS);
 
   try {
-    const response = await fetch(RELEASE_API_URL, {
+    const response = await fetch(RELEASE_PAGE_URL, {
       headers: {
-        accept: "application/vnd.github+json",
+        accept: "text/html,application/xhtml+xml",
         "user-agent": "App-Manager"
       },
       signal: controller.signal
     });
 
     if (!response.ok) {
-      throw new Error(`GitHub release API returned ${response.status}.`);
+      throw new Error(`GitHub release page returned ${response.status}.`);
     }
 
-    const payload = (await response.json()) as GitHubReleasePayload;
-    return releasePayloadToResult(payload);
+    return releasePageToResult({
+      html: await response.text(),
+      finalUrl: response.url
+    });
   } finally {
     clearTimeout(timeout);
   }
@@ -348,7 +402,7 @@ export function isAllowedDownloadUrl(url: string): boolean {
 
 function formatUpdateErrorMessage(error: unknown): string {
   if (error instanceof Error && error.name === "AbortError") {
-    return "GitHub release API request timed out.";
+    return "GitHub release page request timed out.";
   }
 
   return error instanceof Error ? error.message : "Failed to check updates.";

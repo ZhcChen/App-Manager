@@ -54,6 +54,7 @@ describe("UpdateDialog", () => {
     render(
       <UpdateDialog
         isOpen={false}
+        currentVersion="0.1.10"
         result={result}
         error={null}
         isChecking={false}
@@ -73,6 +74,7 @@ describe("UpdateDialog", () => {
     render(
       <UpdateDialog
         isOpen
+        currentVersion="0.1.10"
         result={result}
         error={null}
         isChecking={false}
@@ -114,6 +116,7 @@ describe("UpdateDialog", () => {
     render(
       <UpdateDialog
         isOpen
+        currentVersion="0.1.10"
         result={null}
         error={null}
         isChecking
@@ -126,6 +129,7 @@ describe("UpdateDialog", () => {
     expect(
       screen.getByRole("dialog", { name: "正在检测更新" })
     ).toBeInTheDocument();
+    expect(screen.getByText("v0.1.10")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "检测中..." })).toBeDisabled();
   });
 });

@@ -581,6 +581,7 @@ export function App() {
 
       <UpdateDialog
         isOpen={updateDialogOpen}
+        currentVersion={bootstrapState.appVersion}
         result={updates.result}
         error={updates.error}
         isChecking={updates.isChecking}

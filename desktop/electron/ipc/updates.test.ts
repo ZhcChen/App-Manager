@@ -6,7 +6,7 @@ import {
   compareVersions,
   isAllowedDownloadUrl,
   registerUpdateHandlers,
-  releasePayloadToResult
+  releasePageToResult
 } from "./updates.cjs";
 
 vi.mock("electron", () => ({
@@ -26,6 +26,20 @@ const releaseAsset = {
   browser_download_url:
     "https://github.com/ZhcChen/App-Manager/releases/download/v0.1.11/App-Manager-0.1.11-mac-arm64.dmg"
 };
+
+const releasePageHtml = `
+  <html>
+    <head>
+      <meta property="og:url" content="/ZhcChen/App-Manager/releases/tag/v0.1.11" />
+    </head>
+    <body>
+      <relative-time datetime="2026-07-23T00:00:00Z"></relative-time>
+      <li><a href="https://github.com/ZhcChen/App-Manager/releases/download/v0.1.11/App-Manager-0.1.11-mac-arm64.dmg">DMG</a></li>
+      <li><a href="https://github.com/ZhcChen/App-Manager/releases/download/v0.1.11/App-Manager-0.1.11-win-x64.exe">EXE</a></li>
+      <li><a href="https://github.com/ZhcChen/App-Manager/releases/download/v0.1.11/App-Manager-0.1.11-linux-x64.AppImage">AppImage</a></li>
+    </body>
+  </html>
+`;
 
 function getRegisteredHandler(channel: string) {
   const match = vi
@@ -57,34 +71,18 @@ describe("update IPC helpers", () => {
     expect(compareVersions("0.1.11-rc.1", "0.1.11")).toBeLessThan(0);
   });
 
-  it("parses a valid GitHub release payload into update assets", () => {
-    const result = releasePayloadToResult({
-      tag_name: "v0.1.11",
-      name: "App Manager v0.1.11",
-      html_url: "https://github.com/ZhcChen/App-Manager/releases/tag/v0.1.11",
-      body: "Release notes",
-      published_at: "2026-07-23T00:00:00Z",
-      assets: [
-        releaseAsset,
-        {
-          name: "App-Manager-0.1.11-win-x64.exe",
-          browser_download_url:
-            "https://github.com/ZhcChen/App-Manager/releases/download/v0.1.11/App-Manager-0.1.11-win-x64.exe"
-        },
-        {
-          name: "App-Manager-0.1.11-linux-x64.AppImage",
-          browser_download_url:
-            "https://github.com/ZhcChen/App-Manager/releases/download/v0.1.11/App-Manager-0.1.11-linux-x64.AppImage"
-        },
-        null
-      ]
+  it("parses a valid GitHub release page into update assets", () => {
+    const result = releasePageToResult({
+      html: releasePageHtml,
+      finalUrl: "https://github.com/ZhcChen/App-Manager/releases/tag/v0.1.11"
     });
 
     expect(result).toMatchObject({
       currentVersion: "0.1.10",
       latestVersion: "0.1.11",
       latestTag: "v0.1.11",
-      hasUpdate: true
+      hasUpdate: true,
+      publishedAt: "2026-07-23T00:00:00Z"
     });
     expect(result.assets).toHaveLength(3);
     expect(result.assets[0]).toMatchObject({
@@ -94,11 +92,21 @@ describe("update IPC helpers", () => {
     });
   });
 
-  it("rejects malformed GitHub release payloads", () => {
-    expect(() => releasePayloadToResult({ assets: [] })).toThrow(
+  it("rejects malformed GitHub release pages", () => {
+    expect(() =>
+      releasePageToResult({
+        html: "<html></html>",
+        finalUrl: "https://github.com/ZhcChen/App-Manager/releases/latest"
+      })
+    ).toThrow(
       "missing tag_name"
     );
-    expect(() => releasePayloadToResult({ tag_name: "v0.1.11" })).toThrow(
+    expect(() =>
+      releasePageToResult({
+        html: '<meta property="og:url" content="/ZhcChen/App-Manager/releases/tag/v0.1.11" />',
+        finalUrl: "https://github.com/ZhcChen/App-Manager/releases/tag/v0.1.11"
+      })
+    ).toThrow(
       "missing assets"
     );
   });
@@ -142,7 +150,7 @@ describe("update IPC helpers", () => {
       ok: false,
       error: {
         code: "update_check_failed",
-        message: "GitHub release API request timed out."
+        message: "GitHub release page request timed out."
       }
     });
   });
@@ -172,15 +180,13 @@ describe("update IPC helpers", () => {
     });
   });
 
-  it("fetches the latest GitHub release with an abort signal", async () => {
+  it("fetches the latest GitHub release page with an abort signal", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockResolvedValue({
         ok: true,
-        json: vi.fn().mockResolvedValue({
-          tag_name: "v0.1.11",
-          assets: [releaseAsset]
-        })
+        url: "https://github.com/ZhcChen/App-Manager/releases/tag/v0.1.11",
+        text: vi.fn().mockResolvedValue(releasePageHtml)
       })
     );
 
@@ -189,7 +195,7 @@ describe("update IPC helpers", () => {
       hasUpdate: true
     });
     expect(fetch).toHaveBeenCalledWith(
-      "https://api.github.com/repos/ZhcChen/App-Manager/releases/latest",
+      "https://github.com/ZhcChen/App-Manager/releases/latest",
       expect.objectContaining({
         signal: expect.any(AbortSignal)
       })
