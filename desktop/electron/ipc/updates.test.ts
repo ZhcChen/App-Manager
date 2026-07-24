@@ -4,12 +4,38 @@ import { DESKTOP_CHANNELS } from "./channels.cjs";
 const {
   appMock,
   browserWindowMock,
+  createWriteStreamMock,
+  execFileMock,
   ipcMainMock,
+  mkdirMock,
+  rmMock,
   sendMock,
+  shellMock,
   updaterMock
 } = vi.hoisted(() => {
   const send = vi.fn();
   const listeners = new Map();
+  const execFile = vi.fn(
+    (
+      _command: string,
+      _args: string[],
+      callback: (error: Error | null, stdout: string, stderr: string) => void
+    ) => {
+      callback(null, "", "Authority=Developer ID Application: App Manager");
+    }
+  );
+  const createWriteStream = vi.fn(() => ({
+    write: vi.fn((_chunk: Buffer, callback?: (error?: Error | null) => void) => {
+      callback?.(null);
+      return true;
+    }),
+    end: vi.fn((callback?: (error?: Error | null) => void) => {
+      callback?.(null);
+    }),
+    destroy: vi.fn()
+  }));
+  const mkdir = vi.fn().mockResolvedValue(undefined);
+  const rm = vi.fn().mockResolvedValue(undefined);
   const updater = {
     autoDownload: true,
     autoInstallOnAppQuit: true,
@@ -38,6 +64,7 @@ const {
   return {
     appMock: {
       getVersion: vi.fn(() => "0.1.10"),
+      getPath: vi.fn(() => "/tmp"),
       isPackaged: true
     },
     browserWindowMock: {
@@ -51,7 +78,14 @@ const {
     ipcMainMock: {
       handle: vi.fn()
     },
+    execFileMock: execFile,
+    createWriteStreamMock: createWriteStream,
+    mkdirMock: mkdir,
+    rmMock: rm,
     sendMock: send,
+    shellMock: {
+      openPath: vi.fn().mockResolvedValue("")
+    },
     updaterMock: updater
   };
 });
@@ -59,11 +93,35 @@ const {
 vi.mock("electron", () => ({
   app: appMock,
   BrowserWindow: browserWindowMock,
-  ipcMain: ipcMainMock
+  ipcMain: ipcMainMock,
+  shell: shellMock
 }));
 
 vi.mock("electron-updater", () => ({
   autoUpdater: updaterMock
+}));
+
+vi.mock("node:child_process", () => ({
+  default: {
+    execFile: execFileMock
+  },
+  execFile: execFileMock
+}));
+
+vi.mock("node:fs", () => ({
+  default: {
+    createWriteStream: createWriteStreamMock
+  },
+  createWriteStream: createWriteStreamMock
+}));
+
+vi.mock("node:fs/promises", () => ({
+  default: {
+    mkdir: mkdirMock,
+    rm: rmMock
+  },
+  mkdir: mkdirMock,
+  rm: rmMock
 }));
 
 const releasePageHtml = `
@@ -100,6 +158,7 @@ describe("update IPC helpers", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.mocked(appMock.getVersion).mockReturnValue("0.1.10");
+    vi.mocked(appMock.getPath).mockReturnValue("/tmp");
     appMock.isPackaged = true;
     vi.mocked(browserWindowMock.getAllWindows).mockImplementation(() => [
       {
@@ -115,6 +174,20 @@ describe("update IPC helpers", () => {
     updaterMock.quitAndInstall.mockReset();
     updaterMock.autoDownload = true;
     updaterMock.autoInstallOnAppQuit = true;
+    execFileMock.mockImplementation(
+      (
+        _command: string,
+        _args: string[],
+        callback: (error: Error | null, stdout: string, stderr: string) => void
+      ) => {
+        callback(null, "", "Authority=Developer ID Application: App Manager");
+      }
+    );
+    createWriteStreamMock.mockClear();
+    mkdirMock.mockClear();
+    rmMock.mockClear();
+    shellMock.openPath.mockReset();
+    shellMock.openPath.mockResolvedValue("");
     delete process.env.APP_MANAGER_CHANNEL;
   });
 
@@ -341,5 +414,112 @@ describe("update IPC helpers", () => {
         signal: expect.any(AbortSignal)
       })
     );
+  });
+
+  it("downloads and opens the installer on macOS when only ad-hoc signing is available", async () => {
+    execFileMock.mockImplementation(
+      (
+        _command: string,
+        _args: string[],
+        callback: (error: Error | null, stdout: string, stderr: string) => void
+      ) => {
+        callback(null, "", "Signature=adhoc");
+      }
+    );
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          url: "https://github.com/ZhcChen/App-Manager/releases/tag/v0.1.11",
+          text: vi.fn().mockResolvedValue(releasePageHtml)
+        })
+        .mockResolvedValueOnce(
+          new Response(Uint8Array.from([1, 2, 3, 4]), {
+            status: 200,
+            headers: {
+              "content-length": "4"
+            }
+          })
+        )
+    );
+
+    const { registerUpdateHandlers } = await loadUpdatesModule();
+    registerUpdateHandlers();
+
+    const handler = getRegisteredHandler(DESKTOP_CHANNELS.startUpdateInstall);
+
+    await expect(handler()).resolves.toMatchObject({
+      ok: true,
+      data: null
+    });
+
+    expect(updaterMock.checkForUpdates).not.toHaveBeenCalled();
+    expect(mkdirMock).toHaveBeenCalledWith("/tmp/App Manager Updates", {
+      recursive: true
+    });
+    expect(shellMock.openPath).toHaveBeenCalledWith(
+      "/tmp/App Manager Updates/App-Manager-0.1.11-mac-arm64.dmg"
+    );
+    expect(sendMock).toHaveBeenLastCalledWith(
+      DESKTOP_CHANNELS.updateInstallStateChanged,
+      expect.objectContaining({
+        phase: "installing",
+        version: "0.1.11",
+        progressPercent: 100,
+        message: expect.stringContaining("安装器已打开")
+      })
+    );
+  });
+
+  it("falls back to the installer flow after a macOS code-sign validation error", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi
+        .fn()
+        .mockResolvedValueOnce({
+          ok: true,
+          url: "https://github.com/ZhcChen/App-Manager/releases/tag/v0.1.11",
+          text: vi.fn().mockResolvedValue(releasePageHtml)
+        })
+        .mockResolvedValueOnce(
+          new Response(Uint8Array.from([1, 2, 3, 4]), {
+            status: 200,
+            headers: {
+              "content-length": "4"
+            }
+          })
+        )
+    );
+    updaterMock.checkForUpdates.mockResolvedValue({
+      isUpdateAvailable: true,
+      updateInfo: {
+        version: "0.1.11"
+      }
+    });
+    updaterMock.downloadUpdate.mockImplementation(async () => {
+      updaterMock.emit(
+        "error",
+        new Error("Code signature at URL file:///tmp/App Manager.app/ did not pass validation.")
+      );
+      return [];
+    });
+
+    const { registerUpdateHandlers } = await loadUpdatesModule();
+    registerUpdateHandlers();
+
+    const handler = getRegisteredHandler(DESKTOP_CHANNELS.startUpdateInstall);
+
+    await expect(handler()).resolves.toMatchObject({
+      ok: true,
+      data: null
+    });
+
+    await vi.waitFor(() => {
+      expect(shellMock.openPath).toHaveBeenCalledWith(
+        "/tmp/App Manager Updates/App-Manager-0.1.11-mac-arm64.dmg"
+      );
+    });
   });
 });

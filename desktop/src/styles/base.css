@@ -938,6 +938,12 @@ button:disabled {
   place-items: center;
   padding: 24px;
   background: rgba(15, 23, 42, 0.28);
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.dialog-backdrop.is-visible {
+  opacity: 1;
 }
 
 .dialog {
@@ -948,6 +954,16 @@ button:disabled {
   background: #ffffff;
   border: 1px solid var(--color-border-soft);
   box-shadow: var(--shadow-panel);
+  opacity: 0;
+  transform: translateY(10px) scale(0.982);
+  transition:
+    opacity 220ms ease,
+    transform 260ms cubic-bezier(0.2, 0.82, 0.2, 1);
+}
+
+.dialog.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
 }
 
 .update-dialog {

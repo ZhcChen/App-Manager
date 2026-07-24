@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { UpdateDialog } from "./UpdateDialog";
 import type { UpdateCheckResult, UpdateInstallState } from "../types";
@@ -94,7 +94,7 @@ describe("UpdateDialog", () => {
     );
 
     expect(onStartInstall).toHaveBeenCalledTimes(1);
-    expect(dialog).toHaveTextContent("下载完成后会自动开始安装");
+    expect(dialog).toHaveTextContent("更新包下载完成后会自动打开安装器");
   });
 
   it("shows real progress and disables the action while downloading", () => {
@@ -153,5 +153,47 @@ describe("UpdateDialog", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("v0.1.10")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "检测中..." })).toBeDisabled();
+  });
+
+  it("keeps the dialog mounted until the close animation finishes", () => {
+    vi.useFakeTimers();
+
+    const view = render(
+      <UpdateDialog
+        isOpen
+        currentVersion="0.1.10"
+        result={result}
+        error={null}
+        isChecking={false}
+        installState={createIdleUpdateInstallState()}
+        onClose={vi.fn()}
+        onCheckNow={vi.fn()}
+        onStartInstall={vi.fn()}
+      />
+    );
+
+    view.rerender(
+      <UpdateDialog
+        isOpen={false}
+        currentVersion="0.1.10"
+        result={result}
+        error={null}
+        isChecking={false}
+        installState={createIdleUpdateInstallState()}
+        onClose={vi.fn()}
+        onCheckNow={vi.fn()}
+        onStartInstall={vi.fn()}
+      />
+    );
+
+    expect(screen.getByRole("dialog", { name: "发现新版本" })).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(240);
+    });
+
+    expect(
+      screen.queryByRole("dialog", { name: "发现新版本" })
+    ).not.toBeInTheDocument();
   });
 });

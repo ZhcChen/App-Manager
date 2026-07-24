@@ -1,4 +1,8 @@
-import { app, BrowserWindow, ipcMain } from "electron";
+import { execFile } from "node:child_process";
+import { createWriteStream } from "node:fs";
+import { mkdir, rm } from "node:fs/promises";
+import path from "node:path";
+import { app, BrowserWindow, ipcMain, shell } from "electron";
 import {
   autoUpdater,
   type ProgressInfo,
@@ -15,6 +19,8 @@ const RELEASE_DOWNLOAD_URL_PREFIX =
   "/ZhcChen/App-Manager/releases/download/";
 const RELEASE_CHECK_TIMEOUT_MS = 10_000;
 const INSTALL_TRIGGER_DELAY_MS = 800;
+const MAC_SIGNATURE_CHECK_BINARY = "/usr/bin/codesign";
+const MANUAL_INSTALLER_DIR_NAME = "App Manager Updates";
 
 type UpdatePlatform = "macos" | "windows" | "linux" | "unknown";
 type UpdateArch = "x64" | "arm64" | "unknown";
@@ -92,6 +98,8 @@ let currentInstallState: UpdateInstallState = DEFAULT_UPDATE_INSTALL_STATE;
 let updateLifecycleBound = false;
 let installScheduled = false;
 let installInFlight = false;
+let cachedMacAutoInstallSupport: boolean | null = null;
+let manualMacInstallInFlight = false;
 
 function normalizeVersion(version: string): string {
   return version.trim().replace(/^v/i, "");
@@ -235,6 +243,24 @@ function detectFormat(fileName: string): UpdateAssetFormat {
   }
 
   return "unknown";
+}
+
+function getPreferredAssetFormatsForPlatform(
+  platform: UpdatePlatform
+): UpdateAssetFormat[] {
+  if (platform === "macos") {
+    return ["dmg", "zip"];
+  }
+
+  if (platform === "windows") {
+    return ["exe"];
+  }
+
+  if (platform === "linux") {
+    return ["appimage", "deb"];
+  }
+
+  return [];
 }
 
 function getCurrentPlatform(): UpdatePlatform {
@@ -450,6 +476,16 @@ function formatUpdateErrorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Failed to check updates.";
 }
 
+function formatInstallErrorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+
+  if (/did not pass validation|code signature/i.test(message)) {
+    return "当前安装包的签名校验未通过，已无法直接完成应用内覆盖安装。";
+  }
+
+  return message || "升级失败。";
+}
+
 function buildInstallState(
   partial: Partial<UpdateInstallState>
 ): UpdateInstallState {
@@ -481,6 +517,240 @@ function updateInstallState(partial: Partial<UpdateInstallState>) {
 function resetInstallFlow() {
   installScheduled = false;
   installInFlight = false;
+  manualMacInstallInFlight = false;
+}
+
+async function supportsMacAutoInstall(): Promise<boolean> {
+  if (process.platform !== "darwin") {
+    return true;
+  }
+
+  if (cachedMacAutoInstallSupport !== null) {
+    return cachedMacAutoInstallSupport;
+  }
+
+  try {
+    const result = await new Promise<string>((resolve, reject) => {
+      execFile(
+        MAC_SIGNATURE_CHECK_BINARY,
+        ["-dv", "--verbose=4", process.execPath],
+        (error, stdout, stderr) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve(`${stdout}\n${stderr}`);
+        }
+      );
+    });
+    const hasAuthority = /Authority=/i.test(result);
+    const isAdHoc = /Signature=adhoc/i.test(result);
+
+    cachedMacAutoInstallSupport = hasAuthority && !isAdHoc;
+  } catch {
+    cachedMacAutoInstallSupport = false;
+  }
+
+  return cachedMacAutoInstallSupport;
+}
+
+function pickPreferredCurrentPlatformAsset(
+  result: UpdateCheckResult
+): UpdateReleaseAsset | null {
+  const preferredFormats = getPreferredAssetFormatsForPlatform(
+    result.currentPlatform
+  );
+
+  for (const format of preferredFormats) {
+    const asset = result.currentPlatformAssets.find(
+      (candidate) => candidate.format === format
+    );
+
+    if (asset) {
+      return asset;
+    }
+  }
+
+  return result.currentPlatformAssets[0] ?? null;
+}
+
+function createManualInstallerPath(asset: UpdateReleaseAsset) {
+  return path.join(app.getPath("downloads"), MANUAL_INSTALLER_DIR_NAME, asset.name);
+}
+
+async function downloadReleaseAssetToFile(
+  asset: UpdateReleaseAsset,
+  version: string | null
+): Promise<string> {
+  const targetPath = createManualInstallerPath(asset);
+
+  await mkdir(path.dirname(targetPath), { recursive: true });
+  await rm(targetPath, { force: true });
+
+  const response = await fetch(asset.url, {
+    headers: {
+      accept: "*/*",
+      "user-agent": "App-Manager"
+    }
+  });
+
+  if (!response.ok || !response.body) {
+    throw new Error(`更新包下载失败（${response.status}）。`);
+  }
+
+  const totalBytesHeader = response.headers.get("content-length");
+  const totalBytes =
+    totalBytesHeader !== null ? Number.parseInt(totalBytesHeader, 10) || null : null;
+  const fileStream = createWriteStream(targetPath);
+  const reader = response.body.getReader();
+  let transferredBytes = 0;
+  const startedAt = Date.now();
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) {
+        break;
+      }
+
+      const chunk = Buffer.from(value);
+
+      await new Promise<void>((resolve, reject) => {
+        fileStream.write(chunk, (error) => {
+          if (error) {
+            reject(error);
+            return;
+          }
+
+          resolve();
+        });
+      });
+
+      transferredBytes += chunk.length;
+      const elapsedSeconds = Math.max((Date.now() - startedAt) / 1_000, 0.25);
+      const progressPercent = totalBytes
+        ? Math.max(1, Math.min(100, Math.round((transferredBytes / totalBytes) * 100)))
+        : 0;
+
+      updateInstallState({
+        phase: "downloading",
+        version,
+        progressPercent,
+        transferredBytes,
+        totalBytes,
+        bytesPerSecond: Math.round(transferredBytes / elapsedSeconds),
+        message: "正在下载更新包..."
+      });
+    }
+  } catch (error) {
+    fileStream.destroy();
+    await rm(targetPath, { force: true });
+    throw error;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    fileStream.end((error?: Error | null) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+
+      resolve();
+    });
+  });
+
+  return targetPath;
+}
+
+async function openManualInstaller(assetPath: string) {
+  const openError = await shell.openPath(assetPath);
+
+  if (openError) {
+    throw new Error(openError);
+  }
+}
+
+async function startManualMacUpdateInstall(initialMessage: string) {
+  updateInstallState({
+    phase: "checking",
+    version: null,
+    progressPercent: 0,
+    transferredBytes: null,
+    totalBytes: null,
+    bytesPerSecond: null,
+    message: initialMessage
+  });
+
+  const result = await checkForUpdates();
+
+  if (!result.hasUpdate) {
+    throw new Error("当前已经是最新版本。");
+  }
+
+  const asset = pickPreferredCurrentPlatformAsset(result);
+
+  if (!asset) {
+    throw new Error("当前设备暂无可用安装包。");
+  }
+
+  updateInstallState({
+    phase: "checking",
+    version: result.latestVersion,
+    progressPercent: 0,
+    transferredBytes: null,
+    totalBytes: null,
+    bytesPerSecond: null,
+    message: "当前 macOS 版本将下载并自动打开安装器。"
+  });
+
+  const installerPath = await downloadReleaseAssetToFile(asset, result.latestVersion);
+
+  updateInstallState({
+    phase: "installing",
+    version: result.latestVersion,
+    progressPercent: 100,
+    message: "更新包已下载，正在打开安装器..."
+  });
+
+  await openManualInstaller(installerPath);
+
+  updateInstallState({
+    phase: "installing",
+    version: result.latestVersion,
+    progressPercent: 100,
+    message:
+      "安装器已打开，请完成覆盖安装；安装完成后重新打开应用即可进入新版本。"
+  });
+}
+
+function shouldFallbackToManualMacInstaller(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /did not pass validation|code signature/i.test(message);
+}
+
+async function fallbackToManualMacInstaller(initialMessage: string) {
+  if (manualMacInstallInFlight) {
+    return;
+  }
+
+  manualMacInstallInFlight = true;
+  installScheduled = false;
+
+  try {
+    await startManualMacUpdateInstall(initialMessage);
+    installInFlight = false;
+    manualMacInstallInFlight = false;
+  } catch (error) {
+    resetInstallFlow();
+    updateInstallState({
+      phase: "failed",
+      progressPercent: 0,
+      message: formatInstallErrorMessage(error)
+    });
+    throw error;
+  }
 }
 
 function bindUpdateLifecycle() {
@@ -571,11 +841,21 @@ function bindUpdateLifecycle() {
   });
 
   autoUpdater.on("error", (error: Error) => {
+    if (
+      process.platform === "darwin" &&
+      shouldFallbackToManualMacInstaller(error)
+    ) {
+      void fallbackToManualMacInstaller(
+        "当前安装包的签名不支持应用内覆盖安装，正在切换为安装器升级..."
+      );
+      return;
+    }
+
     resetInstallFlow();
     updateInstallState({
       phase: "failed",
       progressPercent: 0,
-      message: error.message || "更新失败。"
+      message: formatInstallErrorMessage(error)
     });
   });
 }
@@ -597,6 +877,13 @@ export async function startUpdateInstall() {
   installInFlight = true;
 
   try {
+    if (process.platform === "darwin" && !(await supportsMacAutoInstall())) {
+      await fallbackToManualMacInstaller(
+        "当前 macOS 版本将下载并自动打开安装器。"
+      );
+      return;
+    }
+
     const result = await autoUpdater.checkForUpdates();
 
     if (!result?.isUpdateAvailable) {
@@ -605,13 +892,27 @@ export async function startUpdateInstall() {
 
     await autoUpdater.downloadUpdate();
   } catch (error) {
+    if (
+      process.platform === "darwin" &&
+      shouldFallbackToManualMacInstaller(error)
+    ) {
+      await fallbackToManualMacInstaller(
+        "当前安装包的签名不支持应用内覆盖安装，正在切换为安装器升级..."
+      );
+      return;
+    }
+
     resetInstallFlow();
     updateInstallState({
       phase: "failed",
       progressPercent: 0,
-      message: error instanceof Error ? error.message : "升级启动失败。"
+      message: formatInstallErrorMessage(error)
     });
     throw error;
+  } finally {
+    if (currentInstallState.phase === "failed") {
+      resetInstallFlow();
+    }
   }
 }
 
@@ -644,8 +945,7 @@ export function registerUpdateHandlers() {
     } catch (error) {
       return commandError({
         code: "update_install_failed",
-        message:
-          error instanceof Error ? error.message : "Failed to start update install."
+        message: formatInstallErrorMessage(error)
       });
     }
   });

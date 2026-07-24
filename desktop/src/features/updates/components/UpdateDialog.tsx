@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import type {
   UpdateCheckResult,
   UpdateInstallPhase,
@@ -23,6 +24,8 @@ const PLATFORM_LABELS: Record<UpdatePlatform, string> = {
   linux: "Linux",
   unknown: "未知平台"
 };
+const DIALOG_ENTER_DELAY_MS = 16;
+const DIALOG_EXIT_DURATION_MS = 240;
 
 function getDialogTitle(
   result: UpdateCheckResult | null,
@@ -59,12 +62,27 @@ function getUpgradeButtonLabel(
   return `升级到 v${latestVersion ?? ""}`;
 }
 
-function getUpgradeStatusCopy(state: UpdateInstallState) {
+function getUpgradeStatusCopy(
+  state: UpdateInstallState,
+  platform: UpdatePlatform
+) {
   if (state.message) {
     return state.message;
   }
 
+  if (platform === "macos") {
+    return "点击升级后，应用会在后台下载更新并自动打开安装器。";
+  }
+
   return "点击升级后，应用会在后台下载更新并自动安装。";
+}
+
+function getUpgradeCardCopy(platform: UpdatePlatform) {
+  if (platform === "macos") {
+    return "已匹配当前设备的升级通道，更新包下载完成后会自动打开安装器。";
+  }
+
+  return "已匹配当前设备的升级通道，下载完成后会自动开始安装。";
 }
 
 function isUpgradeBusy(phase: UpdateInstallPhase) {
@@ -88,11 +106,42 @@ export function UpdateDialog(props: UpdateDialogProps) {
     onCheckNow,
     onStartInstall
   } = props;
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  const [visible, setVisible] = useState(false);
   const currentAssets = result?.currentPlatformAssets ?? [];
   const hasCurrentPlatformUpdate = currentAssets.length > 0;
   const dialogTitle = getDialogTitle(result, error, isChecking);
+  const currentPlatform = result?.currentPlatform ?? "unknown";
 
-  if (!isOpen) {
+  useEffect(() => {
+    if (isOpen) {
+      setShouldRender(true);
+
+      const enterTimer = window.setTimeout(() => {
+        setVisible(true);
+      }, DIALOG_ENTER_DELAY_MS);
+
+      return () => {
+        window.clearTimeout(enterTimer);
+      };
+    }
+
+    setVisible(false);
+
+    if (!shouldRender) {
+      return undefined;
+    }
+
+    const exitTimer = window.setTimeout(() => {
+      setShouldRender(false);
+    }, DIALOG_EXIT_DURATION_MS);
+
+    return () => {
+      window.clearTimeout(exitTimer);
+    };
+  }, [isOpen, shouldRender]);
+
+  if (!shouldRender) {
     return null;
   }
 
@@ -105,11 +154,14 @@ export function UpdateDialog(props: UpdateDialogProps) {
   };
 
   return (
-    <div className="dialog-backdrop" role="presentation">
+    <div
+      className={`dialog-backdrop ${visible ? "is-visible" : "is-hidden"}`}
+      role="presentation"
+    >
       <section
         aria-modal="true"
         aria-labelledby="update-dialog-title"
-        className="dialog update-dialog"
+        className={`dialog update-dialog ${visible ? "is-visible" : "is-hidden"}`}
         role="dialog"
       >
         <p className="dialog-eyebrow">应用升级</p>
@@ -146,7 +198,7 @@ export function UpdateDialog(props: UpdateDialogProps) {
             {hasCurrentPlatformUpdate ? (
               <>
                 <p className="update-upgrade-card__copy">
-                  已匹配当前设备的升级通道，下载完成后会自动开始安装。
+                  {getUpgradeCardCopy(currentPlatform)}
                 </p>
                 <button
                   type="button"
@@ -174,7 +226,7 @@ export function UpdateDialog(props: UpdateDialogProps) {
                   >
                     <span style={{ width: `${installState.progressPercent}%` }} />
                   </div>
-                  <p>{getUpgradeStatusCopy(installState)}</p>
+                  <p>{getUpgradeStatusCopy(installState, currentPlatform)}</p>
                 </div>
               </>
             ) : (
