@@ -1,7 +1,6 @@
 appId: com.zhcchen.app-manager
 productName: App Manager
 asar: true
-icon: ../packages/brand/logo/app-manager-mark
 artifactName: App-Manager-${version}-${os}-${arch}.${ext}
 
 directories:
@@ -17,6 +16,11 @@ extraResources:
     to: bin
     filter:
       - "**/*"
+  - from: ../packages/brand/logo
+    to: brand
+    filter:
+      - app-manager-dock.png
+      - app-manager-dev-dock.png
 
 mac:
   icon: ../packages/brand/logo/app-manager-dock.icns
@@ -32,6 +36,7 @@ mac:
     - Contents/Resources/bin/process-sidecar
 
 win:
+  icon: ../packages/brand/logo/app-manager-dock.png
   target:
     - target: nsis
       arch:
@@ -39,6 +44,7 @@ win:
         - arm64
 
 linux:
+  icon: ../packages/brand/logo/app-manager-dock.png
   category: Utility
   executableName: app-manager
   target:

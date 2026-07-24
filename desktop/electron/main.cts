@@ -1,5 +1,6 @@
 import path from "node:path";
 import { app, BrowserWindow, nativeImage } from "electron";
+import { resolvePngBrandIconPath, shouldApplyDockIcon } from "./branding.cjs";
 import { registerBootstrapHandlers } from "./ipc/bootstrap.cjs";
 import { registerProcessHandlers } from "./ipc/processes.cjs";
 import { registerUpdateHandlers } from "./ipc/updates.cjs";
@@ -14,28 +15,33 @@ function resolveRendererEntry() {
   return process.env.ELECTRON_RENDERER_URL ?? null;
 }
 
-function resolvePngBrandIconPath() {
-  const iconName = isDevRuntime ? "app-manager-dev-dock.png" : "app-manager-dock.png";
-  return path.resolve(__dirname, "../../packages/brand/logo", iconName);
+function resolveCurrentPngBrandIconPath() {
+  return resolvePngBrandIconPath({
+    isDevRuntime,
+    isPackaged: app.isPackaged,
+    moduleDir: __dirname,
+    resourcesPath: process.resourcesPath
+  });
 }
 
 function applyRuntimeBrandIcon() {
-  if (app.isPackaged) {
+  const dock = app.dock;
+
+  if (!dock || !shouldApplyDockIcon(process.platform, true)) {
     return;
   }
 
-  const icon = nativeImage.createFromPath(resolvePngBrandIconPath());
+  const icon = nativeImage.createFromPath(resolveCurrentPngBrandIconPath());
   if (icon.isEmpty()) {
     return;
   }
 
-  if (process.platform === "darwin" && app.dock) {
-    app.dock.setIcon(icon);
-  }
+  dock.setIcon(icon);
 }
 
 function createMainWindow() {
-  const windowIcon = app.isPackaged ? undefined : resolvePngBrandIconPath();
+  const windowIcon =
+    process.platform === "darwin" ? undefined : resolveCurrentPngBrandIconPath();
   const window = new BrowserWindow({
     width: 1360,
     height: 920,
