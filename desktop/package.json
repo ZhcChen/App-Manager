@@ -1,6 +1,6 @@
 {
   "name": "@app-manager/desktop",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "private": true,
   "description": "Cross-platform desktop app manager built with Electron, Rust sidecar, and React.",
   "type": "module",
